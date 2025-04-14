@@ -19,5 +19,5 @@ This project aims to predict the upvote score of posts on [Hacker News](https://
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/hn-upvote-predictor.git
-cd hn-upvote-predictor
+git clone https://github.com/FilippoRomeo/ml-institute-week-1.git
+cd ml-institute-week-1
