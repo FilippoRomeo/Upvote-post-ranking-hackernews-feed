@@ -1,0 +1,8 @@
+torch
+torchtext
+transformers
+psycopg2-binary
+scikit-learn
+pandas
+jupyterlab
+matplotlib
