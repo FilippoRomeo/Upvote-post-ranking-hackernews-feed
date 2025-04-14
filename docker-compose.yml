@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  hn-app:
+    build: .
+    container_name: hn_prediction
+    ports:
+      - "8888:8888"  # For Jupyter
+    volumes:
+      - .:/app
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --NotebookApp.token=''
