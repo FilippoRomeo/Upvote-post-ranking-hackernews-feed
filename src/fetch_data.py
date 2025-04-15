@@ -1,7 +1,7 @@
+# src/fetch_data.py
 import psycopg2
 import pandas as pd
 
-# DB credentials
 conn_str = {
     "host": "178.156.142.230",
     "port": 5432,
@@ -12,11 +12,11 @@ conn_str = {
 
 def fetch_data():
     conn = psycopg2.connect(**conn_str)
-    query = "SELECT title, score FROM posts;"  # Adjust if table/column names are different
+    query = "SELECT title, score FROM posts;"
     df = pd.read_sql(query, conn)
     conn.close()
     return df
 
 if __name__ == "__main__":
     df = fetch_data()
-    print(df.head())
+    df.to_csv("data/hn_posts.csv", index=False)
