@@ -1,60 +1,70 @@
-# src/tokenizer.py
+# src/train_word2vec.py
 
-from datasets import load_dataset
-from collections import Counter
-import re
-import argparse
+import torch
+from torch.utils.data import DataLoader
+from word2vec_dataset import Word2VecDataset
+from word2vec_model import CBOWModel
+import json
+import time
+from tqdm import tqdm  # For progress bars
 
-def clean_text(text):
-    # Lowercase and remove non-alphabet characters
-    text = text.lower()
-    text = re.sub(r'[^a-z\s]', '', text)
-    tokens = text.split()
-    return tokens
+# Load tokens
+with open("../data/tokens.json", "r") as f:
+    tokens = json.load(f)
 
-def limit_vocab(tokens, vocab_size):
-    counter = Counter(tokens)
-    most_common = counter.most_common(vocab_size)
-    vocab = set(word for word, _ in most_common)
-    filtered = [word for word in tokens if word in vocab]
-    return filtered, vocab
+# Create dataset
+context_size = 2
+dataset = Word2VecDataset(tokens, context_size=context_size)
+dataloader = DataLoader(dataset, batch_size=128, shuffle=True)
 
-def load_text8_tokens(vocab_size=None, path="text8"):
-    print("Loading text8 file from local path...")
-    with open(path, "r") as f:
-        raw_text = f.read()
+# Model setup
+embedding_dim = 100
+ 
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+print(f"🖥️  Using device: {device}")
 
-    print("Cleaning and tokenizing...")
-    tokens = clean_text(raw_text)
-    print(f"Original token count: {len(tokens)}")
+# Initialize model
+model = CBOWModel(len(dataset.word_to_ix), embedding_dim).to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+loss_fn = torch.nn.CrossEntropyLoss()
 
-    if vocab_size is not None and vocab_size > 0:
-        tokens, vocab = limit_vocab(tokens, vocab_size)
-        print(f"Reduced to top {vocab_size} words, token count now: {len(tokens)}")
-    else:
-        print("No vocabulary size limit applied.")
+# Training loop
+epochs = 5
+start_time = time.time()
 
-    return tokens
+for epoch in range(epochs):
+    epoch_loss = 0
+    progress_bar = tqdm(dataloader, 
+                       desc=f"Epoch {epoch+1}/{epochs}",
+                       unit="batch",
+                       ncols=100)  # Configure progress bar
+    
+    for context_idxs, target in progress_bar:
+        context_idxs = context_idxs.to(device)
+        target = target.to(device)
 
+        optimizer.zero_grad()
+        output = model(context_idxs)
+        loss = loss_fn(output, target)
+        loss.backward()
+        optimizer.step()
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--vocab_size", type=int, default=None)
-    parser.add_argument("--path", type=str, default="text8")
-    args = parser.parse_args()
+        epoch_loss += loss.item()
+        
+        # Update progress bar with current loss
+        progress_bar.set_postfix({"batch_loss": f"{loss.item():.2f}"})
+    
+    # Print epoch summary
+    avg_loss = epoch_loss / len(dataloader)
+    print(f"\n✅ Epoch {epoch + 1} complete — Avg Loss: {avg_loss:.4f}")
 
-    tokens = load_text8_tokens(vocab_size=args.vocab_size, path=args.path)
+end_time = time.time()
+print(f"\n⏱️  Training completed in {(end_time - start_time)/60:.2f} minutes.")
 
-    print("Sample:", tokens[:20])
-
-    # Save to ./data/tokens.json
-    import os
-    import json
-
-    os.makedirs("data", exist_ok=True)
-
-    with open("../data/tokens.json", "w") as f:
-        json.dump(tokens, f)
-
-    print("✅ Tokens saved to data/tokens.json")
-
+# Save the model
+torch.save({
+    "model_state_dict": model.state_dict(),
+    "word_to_ix": dataset.word_to_ix,
+    "ix_to_word": dataset.ix_to_word,
+}, "data/cbow_embeddings.pt")
+print("✅ Trained Word2Vec model saved to data/cbow_embeddings.pt")

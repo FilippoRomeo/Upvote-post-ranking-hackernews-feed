@@ -6,7 +6,7 @@ from word2vec_dataset import Word2VecDataset
 from word2vec_model import CBOWModel
 import json
 import time
-
+from tqdm import tqdm  # <-- Make sure this import is at the top
 
 # Load tokens
 with open("../data/tokens.json", "r") as f:
@@ -23,20 +23,24 @@ embedding_dim = 100
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"🖥️  Using device: {device}")
 
-
 # Train loop
 epochs = 5
 
 model = CBOWModel(len(dataset.word_to_ix), embedding_dim).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 loss_fn = torch.nn.CrossEntropyLoss()
 
 start_time = time.time()
 
 for epoch in range(epochs):
     total_loss = 0
-    batch_count = 0
-    for context_idxs, target in dataloader:
+    # Wrap dataloader with tqdm for progress bar
+    progress_bar = tqdm(enumerate(dataloader), 
+                      total=len(dataloader),
+                      desc=f'Epoch {epoch+1}/{epochs}',
+                      unit='batch')
+    
+    for batch_count, (context_idxs, target) in progress_bar:
         context_idxs = context_idxs.to(device)
         target = target.to(device)
 
@@ -47,17 +51,17 @@ for epoch in range(epochs):
         optimizer.step()
 
         total_loss += loss.item()
-        batch_count += 1
+        
+        # Update progress bar description with current loss
+        progress_bar.set_postfix({
+            'loss': f'{loss.item():.4f}',
+            'avg_loss': f'{(total_loss/(batch_count+1)):.4f}'
+        })
 
-        # Print every N batches to track progress
-        if batch_count % 100 == 0:
-            print(f"  ↪ Batch {batch_count}, running loss: {total_loss:.2f}")
-
-    print(f"✅ Epoch {epoch + 1}/{epochs} complete — Loss: {total_loss:.4f}")
+    print(f"✅ Epoch {epoch + 1}/{epochs} complete — Avg Loss: {total_loss/len(dataloader):.4f}")
 
 end_time = time.time()
 print(f"⏱️  Training completed in {(end_time - start_time):.2f} seconds.")
-
 
 # Save the model
 torch.save({
