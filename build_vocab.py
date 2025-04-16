@@ -3,7 +3,7 @@ import os
 import pickle
 from collections import Counter
 
-TEXT8_PATH = "data/text8"
+TEXT8_PATH = "data/glove.6B.100d.txt"
 VOCAB_PATH = "data/text8_vocab.pkl"
 VOCAB_SIZE = 10000  # You can change this
 
