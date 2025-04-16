@@ -1,4 +1,4 @@
-# src/train_word2vec.py
+# src/tokenizer.py
 
 import torch
 from torch.utils.data import DataLoader
@@ -9,7 +9,7 @@ import time
 from tqdm import tqdm  # For progress bars
 
 # Load tokens
-with open("../data/tokens.json", "r") as f:
+with open("src/data/tokens.json", "r") as f:
     tokens = json.load(f)
 
 # Create dataset
@@ -20,7 +20,7 @@ dataloader = DataLoader(dataset, batch_size=128, shuffle=True)
 # Model setup
 embedding_dim = 100
  
-device = torch.device("cuda" if torch.backends.mps.is_available() else "cpu")
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"🖥️  Using device: {device}")
 
 # Initialize model

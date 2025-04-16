@@ -1,20 +1,18 @@
-FROM python:3.10-slim
+# Use official PyTorch image with CUDA or CPU depending on your machine
+FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
 
-# Install basic tools
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    git \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
+# Set working directory
 WORKDIR /app
 
-# Install Python dependencies
+# Copy requirements and install
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your code
-COPY . .
+# Copy the source code
+COPY src/ ./src/
 
-# Default command
-CMD ["bash"]
+# Set working directory to src for script execution
+WORKDIR /app/src
+
+# Run training script by default
+CMD ["python", "tokenizer.py"]
