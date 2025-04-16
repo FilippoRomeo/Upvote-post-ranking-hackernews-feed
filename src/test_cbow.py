@@ -13,7 +13,7 @@ embeddings = np.load('data/text8_embeddings.npy')  # shape: (vocab_size, embeddi
 embeddings = torch.tensor(embeddings)
 
 # Cosine similarity
-def most_similar(word, topn=5):
+ def most_similar(word, topn=5):
     if word not in word_to_ix:
         print(f"'{word}' not in vocabulary.")
         return []
@@ -22,12 +22,13 @@ def most_similar(word, topn=5):
     target_emb = embeddings[idx].unsqueeze(0)  # shape: (1, dim)
     similarities = F.cosine_similarity(target_emb, embeddings)
 
-    top_indices = torch.topk(similarities, topn + 1).indices  # +1 to exclude the word itself
+    top_indices = torch.topk(similarities, topn + 1).indices  # +1 to skip self
     results = []
     for i in top_indices:
         i = i.item()
-        if ix_to_word[i] != word:
-            results.append((ix_to_word[i], similarities[i].item()))
+        word_i = ix_to_word.get(i)
+        if word_i and word_i != word:
+            results.append((word_i, similarities[i].item()))
         if len(results) == topn:
             break
     return results
