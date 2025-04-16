@@ -1,3 +1,4 @@
+# src/word2vec_dataset.py
 import torch
 from torch.utils.data import Dataset
 import numpy as np
@@ -35,7 +36,7 @@ class Word2VecDataset(Dataset):
     def __getitem__(self, idx):
         context, target = self.data[idx]
         return torch.tensor(context, dtype=torch.long), torch.tensor(target, dtype=torch.long)
-# word2vec_dataset.py
+
 class Word2VecDataset:
     def __init__(self, tokens, word_to_ix, ix_to_word, context_size=5, mode="cbow"):
         self.tokens = tokens

@@ -1,3 +1,4 @@
+# src/text8_tokenizer.py
 import re
 from collections import Counter
 import numpy as np
@@ -8,9 +9,10 @@ def simple_tokenizer(text):
 
 def preprocess_text8(file_path):
     """Load and tokenize text8 data"""
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(path, 'r') as f:
         text = f.read()
-    return simple_tokenizer(text)
+    tokens = text.lower().split()  # <- important!
+    return tokens
 
 def build_vocab(tokens, min_count=5):
     """Build vocabulary from tokens with minimum count threshold"""
