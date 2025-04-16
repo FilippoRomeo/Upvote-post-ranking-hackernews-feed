@@ -1,3 +1,4 @@
+# build_vocab.py
 import os
 import pickle
 from collections import Counter
@@ -7,7 +8,7 @@ VOCAB_PATH = "data/text8_vocab.pkl"
 VOCAB_SIZE = 10000  # You can change this
 
 def preprocess_text8(path):
-    with open(path, 'r') as f:
+    with open(file_path, 'r') as f:
         text = f.read()
     tokens = text.lower().split()
     return tokens

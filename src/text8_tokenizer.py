@@ -9,9 +9,9 @@ def simple_tokenizer(text):
 
 def preprocess_text8(file_path):
     """Load and tokenize text8 data"""
-    with open(path, 'r') as f:
+    with open(file_path, 'r') as f:
         text = f.read()
-    tokens = text.lower().split()  # <- important!
+    tokens = text.lower().split()
     return tokens
 
 def build_vocab(tokens, min_count=5):
