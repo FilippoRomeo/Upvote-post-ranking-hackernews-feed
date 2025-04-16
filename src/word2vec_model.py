@@ -22,3 +22,17 @@ class CBOWModel(nn.Module):
 
     def get_embeddings(self):
         return self.embeddings.weight.data.cpu().numpy()
+
+class SkipGramModel(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        super().__init__()
+        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.linear = nn.Linear(embedding_dim, vocab_size)
+    
+    def forward(self, target):
+        embeds = self.embeddings(target)  # shape: (batch_size, embedding_dim)
+        out = self.linear(embeds)         # shape: (batch_size, vocab_size)
+        return out
+
+    def get_embeddings(self):
+        return self.embeddings.weight.data.cpu().numpy()

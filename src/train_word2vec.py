@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn  # This is the missing import
+import torch.nn as nn 
 from torch.utils.data import DataLoader
 from word2vec_dataset import Word2VecDataset
 from word2vec_model import CBOWModel
@@ -7,7 +7,7 @@ from text8_tokenizer import preprocess_text8, build_vocab, save_vocab
 import time
 from tqdm import tqdm
 import os
-import numpy as np  # Also adding numpy import which we use later
+import numpy as np  
 
 # Configuration
 DATA_DIR = "data"
