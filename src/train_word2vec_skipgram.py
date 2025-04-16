@@ -1,3 +1,4 @@
+# src/train_word2vec_skipgram.py
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader

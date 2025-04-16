@@ -1,3 +1,4 @@
+# src/test_cbow.py
 import torch
 import numpy as np
 import pickle
