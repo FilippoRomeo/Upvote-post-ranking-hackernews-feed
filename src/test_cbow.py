@@ -1,47 +1,49 @@
 # test_cbow.py
 import torch
-import torch.nn.functional as F
-from your_model_module import CBOWModel  # Replace with your actual model file
+import numpy as np
 import pickle
+import torch.nn.functional as F
 
-# Load vocab mappings
-with open('word_to_ix.pkl', 'rb') as f:
-    word_to_ix = pickle.load(f)
-with open('ix_to_word.pkl', 'rb') as f:
-    ix_to_word = pickle.load(f)
+# Load vocab
+with open('data/text8_vocab.pkl', 'rb') as f:
+    vocab = pickle.load(f)
+    word_to_ix = vocab['word_to_ix']
+    ix_to_word = vocab['ix_to_word']
 
-# Load trained model
-embedding_dim = 100  # or whatever you used
-vocab_size = len(word_to_ix)
-model = CBOWModel(vocab_size, embedding_dim)
-model.load_state_dict(torch.load('cbow_model.pt'))
-model.eval()
+# Load embeddings
+embeddings = np.load('data/text8_embeddings.npy')  # shape: (vocab_size, embedding_dim)
+embeddings = torch.tensor(embeddings)
 
-# Get embedding for a word
-def get_embedding(word):
-    idx = word_to_ix.get(word, word_to_ix.get('<UNK>'))
-    return model.embeddings(torch.tensor(idx)).detach()
-
-# Find top-N similar words based on cosine similarity
+# Cosine similarity
 def most_similar(word, topn=5):
-    word_emb = get_embedding(word)
-    all_embeddings = model.embeddings.weight.detach()
-    
-    similarities = F.cosine_similarity(word_emb.unsqueeze(0), all_embeddings)
-    topk = torch.topk(similarities, topn + 1)  # +1 to skip the word itself
-    top_words = [(ix_to_word[i.item()], similarities[i].item()) for i in topk.indices if ix_to_word[i.item()] != word]
-    return top_words[:topn]
+    if word not in word_to_ix:
+        print(f"'{word}' not in vocabulary.")
+        return []
 
-# CLI-like interface
+    idx = word_to_ix[word]
+    target_emb = embeddings[idx].unsqueeze(0)  # shape: (1, dim)
+    similarities = F.cosine_similarity(target_emb, embeddings)
+
+    top_indices = torch.topk(similarities, topn + 1).indices  # +1 to exclude the word itself
+    results = []
+    for i in top_indices:
+        i = i.item()
+        if ix_to_word[i] != word:
+            results.append((ix_to_word[i], similarities[i].item()))
+        if len(results) == topn:
+            break
+    return results
+
+# CLI
 if __name__ == '__main__':
+    print("🔍 CBOW Similarity Explorer (type 'exit' to quit)")
     while True:
-        word = input("Enter a word (or 'exit' to quit): ").strip().lower()
+        word = input("Enter a word: ").strip().lower()
         if word == 'exit':
             break
-        if word not in word_to_ix:
-            print(f"'{word}' not in vocabulary.")
-            continue
-        print(f"Top similar words to '{word}':")
-        for sim_word, score in most_similar(word):
-            print(f"  {sim_word:<10} | similarity: {score:.4f}")
-
+        similar_words = most_similar(word)
+        if similar_words:
+            print(f"\nWords most similar to '{word}':")
+            for w, score in similar_words:
+                print(f"  {w:<12} | similarity: {score:.4f}")
+            print()
