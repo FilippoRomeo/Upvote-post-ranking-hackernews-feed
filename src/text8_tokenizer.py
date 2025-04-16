@@ -40,4 +40,5 @@ def load_vocab(file_path):
     """Load vocabulary from file"""
     import pickle
     with open(file_path, 'rb') as f:
-        return pickle.load(f)
+        word_to_ix, ix_to_word = pickle.load(f)
+    return word_to_ix, ix_to_word
