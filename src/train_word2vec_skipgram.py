@@ -11,7 +11,7 @@ import os
 import numpy as np
 
 # Configuration (same as CBOW)
-DATA_DIR = "../data"
+DATA_DIR = "data"
 TEXT8_PATH = os.path.join(DATA_DIR, "text8")
 VOCAB_PATH = os.path.join(DATA_DIR, "text8_vocab.pkl")  # Reuse CBOW's vocab
 MODEL_SAVE_PATH = os.path.join(DATA_DIR, "text8_skipgram_model.pt")
