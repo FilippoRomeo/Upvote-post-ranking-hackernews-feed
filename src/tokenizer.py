@@ -1,5 +1,4 @@
 # src/tokenizer.py
-
 import torch
 from torch.utils.data import DataLoader
 from word2vec_dataset import Word2VecDataset
