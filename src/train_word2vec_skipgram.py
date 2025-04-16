@@ -1,10 +1,9 @@
-# train_word2vec_skipgram.py
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from word2vec_dataset import Word2VecDataset
 from word2vec_model import SkipGramModel
-from text8_tokenizer import load_vocab, preprocess_text8  # Add this to your text8_tokenizer.py
+from text8_tokenizer import load_vocab, preprocess_text8  # Correct import
 import time
 from tqdm import tqdm
 import os
