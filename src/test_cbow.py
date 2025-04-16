@@ -6,9 +6,7 @@ import torch.nn.functional as F
 
 # Load vocab
 with open('data/text8_vocab.pkl', 'rb') as f:
-    vocab = pickle.load(f)
-    word_to_ix = vocab['word_to_ix']
-    ix_to_word = vocab['ix_to_word']
+    word_to_ix, ix_to_word = pickle.load(f)
 
 # Load embeddings
 embeddings = np.load('data/text8_embeddings.npy')  # shape: (vocab_size, embedding_dim)
