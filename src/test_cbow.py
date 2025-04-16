@@ -1,4 +1,3 @@
-# test_cbow.py
 import torch
 import numpy as np
 import pickle
@@ -13,7 +12,7 @@ embeddings = np.load('data/text8_embeddings.npy')  # shape: (vocab_size, embeddi
 embeddings = torch.tensor(embeddings)
 
 # Cosine similarity
- def most_similar(word, topn=5):
+def most_similar(word, topn=5):
     if word not in word_to_ix:
         print(f"'{word}' not in vocabulary.")
         return []
