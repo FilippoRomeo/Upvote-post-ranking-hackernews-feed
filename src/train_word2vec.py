@@ -1,4 +1,5 @@
-import torch
+# src/train_word2vec.py
+import torch 
 import torch.nn as nn 
 from torch.utils.data import DataLoader
 from word2vec_dataset import Word2VecDataset
