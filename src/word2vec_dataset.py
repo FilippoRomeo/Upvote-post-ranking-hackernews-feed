@@ -1,38 +1,37 @@
 import torch
 from torch.utils.data import Dataset
-from collections import Counter
-import re
-
+import numpy as np
 
 class Word2VecDataset(Dataset):
-    def __init__(self, tokens, context_size=2):
+    def __init__(self, tokens, word_to_ix, ix_to_word, context_size=5):
+        """
+        Args:
+            tokens: List of tokenized words
+            word_to_ix: Dictionary mapping words to indices
+            ix_to_word: Dictionary mapping indices to words
+            context_size: Half the size of the context window
+        """
         self.context_size = context_size
-        self.tokens = tokens  # <- already tokenized!
-
-        # Build vocab
-        self.word_to_ix = {word: i for i, word in enumerate(sorted(set(tokens)))}
-        self.ix_to_word = {i: word for word, i in self.word_to_ix.items()}
-
+        self.tokens = tokens
+        self.word_to_ix = word_to_ix
+        self.ix_to_word = ix_to_word
+        self.unk_idx = word_to_ix.get('<unk>', 1)
+        
         # Generate training pairs
-        self.data = self.create_context_target_pairs()
-
-    def create_context_target_pairs(self):
-        data = []
-        for i in range(self.context_size, len(self.tokens) - self.context_size):
-            context = [
-                self.tokens[j]
-                for j in range(i - self.context_size, i + self.context_size + 1)
-                if j != i
-            ]
-            target = self.tokens[i]
-            data.append((context, target))
-        return data
+        self.data = []
+        for i in range(context_size, len(tokens) - context_size):
+            context = (
+                [self.word_to_ix.get(tokens[j], self.unk_idx) 
+                 for j in range(i - context_size, i)] +
+                [self.word_to_ix.get(tokens[j], self.unk_idx) 
+                 for j in range(i + 1, i + context_size + 1)]
+            )
+            target = self.word_to_ix.get(tokens[i], self.unk_idx)
+            self.data.append((context, target))
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
         context, target = self.data[idx]
-        context_idxs = torch.tensor([self.word_to_ix[w] for w in context], dtype=torch.long)
-        target_idx = torch.tensor(self.word_to_ix[target], dtype=torch.long)
-        return context_idxs, target_idx
+        return torch.tensor(context, dtype=torch.long), torch.tensor(target, dtype=torch.long)

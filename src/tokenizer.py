@@ -9,7 +9,7 @@ import time
 from tqdm import tqdm  # For progress bars
 
 # Load tokens
-with open("src/data/tokens.json", "r") as f:
+with open("data/tokens.json", "r") as f:
     tokens = json.load(f)
 
 # Create dataset
