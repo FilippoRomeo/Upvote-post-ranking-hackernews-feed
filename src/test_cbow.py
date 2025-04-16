@@ -12,9 +12,9 @@ embeddings = np.load('data/text8_embeddings.npy')  # shape: (vocab_size, embeddi
 embeddings = torch.tensor(embeddings)
 
 # Cosine similarity
-def most_similar(word, topn=5):
+def most_similar(word, topn=15):
     if word not in word_to_ix:
-        print(f"'{word}' not in vocabulary.")
+        print(f"❌ '{word}' not in vocabulary.")
         return []
 
     idx = word_to_ix[word]
@@ -34,14 +34,24 @@ def most_similar(word, topn=5):
 
 # CLI
 if __name__ == '__main__':
-    print("🔍 CBOW Similarity Explorer (type 'exit' to quit)")
+    print("🔍 CBOW Semantic Field Explorer")
+    print("Type a word to explore related terms. Type 'exit' to quit.\n")
+
     while True:
-        word = input("Enter a word: ").strip().lower()
-        if word == 'exit':
+        user_input = input("Enter a word (or 'exit'): ").strip().lower()
+        if user_input == 'exit':
             break
-        similar_words = most_similar(word)
+
+        topn_input = input("How many similar words to show? [default: 15]: ").strip()
+        try:
+            topn = int(topn_input) if topn_input else 15
+        except ValueError:
+            print("⚠️ Invalid number. Showing default 15 results.")
+            topn = 15
+
+        similar_words = most_similar(user_input, topn=topn)
         if similar_words:
-            print(f"\nWords most similar to '{word}':")
+            print(f"\n🔗 Words related to '{user_input}':\n")
             for w, score in similar_words:
-                print(f"  {w:<12} | similarity: {score:.4f}")
+                print(f"  {w:<15} | similarity: {score:.4f}")
             print()
