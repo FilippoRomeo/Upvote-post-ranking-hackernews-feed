@@ -8,7 +8,7 @@ with open('data/text8_vocab.pkl', 'rb') as f:
     word_to_ix, ix_to_word = pickle.load(f)
 
 # Load embeddings
-embeddings = np.load('data/text8_embeddings.npy')  # shape: (vocab_size, embedding_dim)
+embeddings = np.load('data/text8_embeddings.npy')
 embeddings = torch.tensor(embeddings)
 
 # Cosine similarity
@@ -18,18 +18,23 @@ def most_similar(word, topn=15):
         return []
 
     idx = word_to_ix[word]
-    target_emb = embeddings[idx].unsqueeze(0)  # shape: (1, dim)
+    target_emb = embeddings[idx].unsqueeze(0)
     similarities = F.cosine_similarity(target_emb, embeddings)
 
-    top_indices = torch.topk(similarities, topn + 1).indices  # +1 to skip self
+    # Get top (topn + 20) in case some are missing from ix_to_word
+    top_indices = torch.topk(similarities, topn + 30).indices
     results = []
+
     for i in top_indices:
         i = i.item()
-        word_i = ix_to_word.get(i)
+        word_i = ix_to_word.get(i, None)
         if word_i and word_i != word:
             results.append((word_i, similarities[i].item()))
         if len(results) == topn:
             break
+
+    if len(results) < topn:
+        print(f"⚠️ Only found {len(results)} valid similar words for '{word}'")
     return results
 
 # CLI
