@@ -45,7 +45,8 @@ def preprocess_data(df, word2vec_model):
         tokens = row['title'].split()  # Simple space-based tokenization
         avg_embedding = get_avg_embedding(tokens, word2vec_model)
         X.append(avg_embedding)
-        y.append(row['upvote_score'])
+        y.append(row['score'])
+
     
     X = np.array(X)
     y = np.array(y)
