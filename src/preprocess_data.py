@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 import pandas as pd
-from word2vec_model import Word2VecModel
+from word2vec_model import CBOWModel
 from word2vec_dataset import Word2VecDataset
 
 def load_hacker_news_data(database_connection):
