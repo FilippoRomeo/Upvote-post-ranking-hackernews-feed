@@ -60,14 +60,15 @@ def train_skipgram(model, data, vocab_size, epochs=10, lr=0.01, negative_samples
             # Get the output from the model for the target word
             output = model(target_tensor)  # shape: [1, vocab_size]
 
-            # Convert to probabilities using BCEWithLogitsLoss
-            sampled_indices = torch.tensor(sampled_words, dtype=torch.long)
-
-            # Flatten output to match the target's shape for binary classification
-            output = output.squeeze(0)[sampled_indices]
+            # Select the output logits corresponding to the sampled words
+            output = output.squeeze(0)[sampled_words]  # Extract logits for the context and negative samples
 
             # Binary classification target: 1 for positive (context), 0 for negative samples
             target_labels = torch.tensor([1] + [0] * negative_samples, dtype=torch.float32)
+
+            # Ensure target_labels shape matches the output shape
+            if target_labels.shape != output.shape:
+                raise ValueError(f"Target shape {target_labels.shape} does not match output shape {output.shape}")
 
             # Calculate loss
             loss = loss_fn(output, target_labels)
