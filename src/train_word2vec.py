@@ -81,155 +81,56 @@ def evaluate_similarity(model, word_to_ix, ix_to_word, words):
     )})
 
 def train():
-    # Reproducibility
     torch.manual_seed(42)
-    np.random.seed(42)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    device = get_device()
 
-    # Device setup
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-    
-    # Initialize wandb
-    wandb.init(project="word2vec-cbow", config=config, 
-              settings=wandb.Settings(start_method="thread"))
-    
-    # Load and preprocess text8 data
-    print("Loading and tokenizing text8 data...")
+    if config.get("use_wandb", True):
+        wandb.init(project="word2vec-cbow", config=config, settings=wandb.Settings(start_method="thread"))
+
     tokens = preprocess_text8(TEXT8_PATH)
-    print(f"Total tokens: {len(tokens):,}")
-
-    # Build vocabulary
-    print("Building vocabulary...")
-    word_to_ix, ix_to_word, vocab = build_vocab(tokens, min_count=config["min_word_count"])
-    vocab_size = len(word_to_ix)
-    print(f"Vocabulary size: {vocab_size:,}")
-    
-    # Save vocabulary
+    word_to_ix, ix_to_word, _ = build_vocab(tokens, config["min_word_count"])
     save_vocab_json(word_to_ix, ix_to_word, VOCAB_PATH)
-    print(f"Vocabulary saved to {VOCAB_PATH}")
 
-    # Create dataset and dataloader
-    dataset = Word2VecDataset(tokens, word_to_ix, ix_to_word, context_size=config["context_size"])
-    dataloader = DataLoader(dataset, batch_size=config["batch_size"], 
-                          shuffle=True, num_workers=4, pin_memory=True)
+    dataset = Word2VecDataset(tokens, word_to_ix, ix_to_word, config["context_size"])
+    dataloader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=True, num_workers=4)
 
-    # Initialize model
-    model = CBOWModel(vocab_size, config["embedding_dim"]).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], 
-                                weight_decay=1e-5, amsgrad=True)
-    
-    # Warmup LR scheduler
+    model = CBOWModel(len(word_to_ix), config["embedding_dim"]).to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-5)
     lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda step: min(1., step / config["warmup_steps"]))
-    
-    # ReduceLR scheduler
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', patience=2, factor=0.5, verbose=True)
-    
     loss_fn = nn.CrossEntropyLoss()
-    
-    # Watch model
-    wandb.watch(model, loss_fn, log="parameters", log_freq=500)
 
-    # Training setup
-    print("\nStarting training...")
-    start_time = time.time()
-    best_loss = float('inf')
-    no_improvement = 0
-
+    best_loss, no_improve = float("inf"), 0
     for epoch in range(1, config["epochs"] + 1):
-        epoch_loss = 0
         model.train()
-        progress_bar = tqdm(dataloader, desc=f"Epoch {epoch}/{config['epochs']}", unit="batch")
-        
-        for batch_idx, (context, target) in enumerate(progress_bar):
-            context, target = context.to(device), target.to(device)
+        epoch_loss = 0
 
-            optimizer.zero_grad(set_to_none=True)
-            output = model(context)
-            loss = loss_fn(output, target)
+        for i, (ctx, tgt) in enumerate(tqdm(dataloader, desc=f"Epoch {epoch}")):
+            ctx, tgt = ctx.to(device), tgt.to(device)
+            optimizer.zero_grad()
+            loss = loss_fn(model(ctx), tgt)
             loss.backward()
-            
-            # Gradient accumulation
-            if (batch_idx + 1) % config["accumulation_steps"] == 0:
+
+            if (i + 1) % config["accumulation_steps"] == 0:
                 optimizer.step()
-                optimizer.zero_grad()
-            
             epoch_loss += loss.item()
-            progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
 
-            # Log batch metrics
-            if batch_idx % 500 == 0:
-                wandb.log({
-                    "batch_loss": loss.item(),
-                    "epoch_progress": epoch + batch_idx/len(dataloader),
-                    "learning_rate": optimizer.param_groups[0]['lr']
-                })
-
-        # Update learning rate scheduler
-        lr_scheduler.step(epoch * len(dataloader) + batch_idx)
-        
-        # Epoch evaluation
         avg_loss = epoch_loss / len(dataloader)
-        scheduler.step(avg_loss)
-        
-        # Evaluate word similarities
-        if epoch % 2 == 0 or epoch == 1:
-            evaluate_similarity(model, word_to_ix, ix_to_word, config["eval_words"])
-            print_similar_words(config["eval_words"][0], model, word_to_ix, ix_to_word)
+        lr_scheduler.step(epoch)
 
-        # Log epoch metrics
-        wandb.log({
-            "epoch_loss": avg_loss,
-            "epoch": epoch,
-            "epoch_time": (time.time() - start_time) / 60
-        })
-
-        # Early stopping and model saving
         if avg_loss < best_loss:
             best_loss = avg_loss
-            no_improvement = 0
-            torch.save({
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "loss": best_loss,
-                "epoch": epoch
-            }, BEST_MODEL_PATH)
+            no_improve = 0
+            save_model(BEST_MODEL_PATH, model, optimizer, {"epoch": epoch, "loss": best_loss})
         else:
-            no_improvement += 1
-            if no_improvement >= config["patience"]:
-                print(f"\nEarly stopping at epoch {epoch}")
+            no_improve += 1
+            if no_improve >= config["patience"]:
                 break
 
-    # Final save
-    torch.save({
-        "model_state_dict": model.state_dict(),
-        "word_to_ix": word_to_ix,
-        "ix_to_word": ix_to_word,
-        "config": config,
-        "optimizer_state_dict": optimizer.state_dict()
-    }, MODEL_SAVE_PATH)
+        if epoch % 2 == 0:
+            evaluate_similarity(model, word_to_ix, ix_to_word, config["eval_words"])
 
-    # Save embeddings
-    embeddings = model.embeddings.weight.data.cpu().numpy()
-    np.save(EMBEDDINGS_PATH, embeddings)
-
-    # Log artifacts
-    artifact = wandb.Artifact('trained-model', type='model')
-    artifact.add_file(MODEL_SAVE_PATH)
-    artifact.add_file(BEST_MODEL_PATH)
-    artifact.add_file(EMBEDDINGS_PATH)
-    artifact.add_file(VOCAB_PATH)
-    wandb.log_artifact(artifact)
-
-    print(f"\nTraining completed in {(time.time() - start_time)/60:.2f} minutes")
-    print(f"Model saved to {MODEL_SAVE_PATH}")
-    print(f"Best model saved to {BEST_MODEL_PATH}")
-    print(f"Embeddings saved to {EMBEDDINGS_PATH}")
-    
-    # Finish wandb run
-    wandb.finish()
+    save_model(MODEL_SAVE_PATH, model, optimizer)
+    np.save(EMBEDDINGS_PATH, model.embeddings.weight.data.cpu().numpy())
 
 if __name__ == "__main__":
     train()
