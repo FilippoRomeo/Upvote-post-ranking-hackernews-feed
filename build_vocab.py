@@ -4,7 +4,7 @@ from collections import Counter
 
 TEXT8_PATH = "text8"  # Changed from glove file to text8
 VOCAB_PATH = "data/tokens.json"  # Changed output path
-VOCAB_SIZE = 10000
+VOCAB_SIZE = None 
 
 def preprocess_text8(path):
     """Load and tokenize text8 file"""
@@ -14,28 +14,35 @@ def preprocess_text8(path):
     tokens = text.lower().split()
     return tokens
 
-def build_vocab(tokens, vocab_size):
+def build_vocab(tokens, vocab_size=None):
     """Build vocabulary from tokens"""
     word_counts = Counter(tokens)
-    most_common = word_counts.most_common(vocab_size - 1)  # Reserve 0 for UNK
-    
+
+    # Use all tokens if vocab_size is None
+    if vocab_size is None:
+        most_common = word_counts.items()
+    else:
+        most_common = word_counts.most_common(vocab_size - 1)  # Reserve 0 for UNK
+
     word_to_ix = {word: i for i, (word, _) in enumerate(most_common, start=1)}
     word_to_ix["<UNK>"] = 0  # Add unknown token
     ix_to_word = {i: word for word, i in word_to_ix.items()}
     
     return word_to_ix, ix_to_word
 
-def save_vocab_json(word_to_ix, ix_to_word, path):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
+def save_vocab_json(word_to_ix, ix_to_word, file_path):
+    with open(file_path, "w", encoding="utf-8") as f:
         json.dump({
             "word_to_ix": word_to_ix,
-            "ix_to_word": {str(k): v for k, v in ix_to_word.items()}  # convert keys to str for JSON
-        }, f, indent=2)
+            "ix_to_word": {str(k): v for k, v in ix_to_word.items()}
+        }, f)
 
-def load_vocab(path):
-    with open(path, "rb") as f:
-        word_to_ix, ix_to_word = pickle.load(f)
+
+def load_vocab_json(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        word_to_ix = data["word_to_ix"]
+        ix_to_word = {int(k): v for k, v in data["ix_to_word"].items()}
     return word_to_ix, ix_to_word
 
 if __name__ == "__main__":

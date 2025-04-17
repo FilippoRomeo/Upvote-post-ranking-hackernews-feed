@@ -2,8 +2,7 @@
 import re
 from collections import Counter
 import numpy as np
-from text8_tokenizer import preprocess_text8, build_vocab, save_vocab, load_vocab
-
+import json
 
 def simple_tokenizer(text):
     """Basic tokenizer that splits on whitespace and lowercases"""
@@ -29,18 +28,16 @@ def build_vocab(tokens, min_count=5):
     
     return word_to_ix, ix_to_word, vocab
 
-def save_vocab(word_to_ix, ix_to_word, file_path):
-    """Save vocabulary to file"""
-    import pickle
-    with open(file_path, 'wb') as f:
-        pickle.dump({
-            'word_to_ix': word_to_ix,
-            'ix_to_word': ix_to_word
+def save_vocab_json(word_to_ix, ix_to_word, file_path):
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "word_to_ix": word_to_ix,
+            "ix_to_word": {str(k): v for k, v in ix_to_word.items()}
         }, f)
 
-def load_vocab(file_path):
-    """Load vocabulary from file"""
-    import pickle
-    with open(file_path, 'rb') as f:
-        word_to_ix, ix_to_word = pickle.load(f)
+def load_vocab_json(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        word_to_ix = data["word_to_ix"]
+        ix_to_word = {int(k): v for k, v in data["ix_to_word"].items()}
     return word_to_ix, ix_to_word
