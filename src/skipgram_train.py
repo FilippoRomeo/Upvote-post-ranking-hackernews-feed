@@ -16,9 +16,12 @@ from collections import defaultdict
 DATA_DIR = "data"
 TEXT8_PATH = os.path.join(DATA_DIR, "text8")
 VOCAB_PATH = os.path.join(DATA_DIR, "text8_vocab.json")
-MODEL_SAVE_PATH = os.path.join(DATA_DIR, "text8_skipgram_model.pt")
-BEST_MODEL_PATH = os.path.join(DATA_DIR, "best_model.pt")
-EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_embeddings.npy")
+# Hyperparameters and paths for Skipgram model
+SKIPGRAM_MODEL_SAVE_PATH = os.path.join(DATA_DIR, "text8_skipgram_model.pt")
+SKIPGRAM_BEST_MODEL_PATH = os.path.join(DATA_DIR, "best_skipgram_model.pt")
+SKIPGRAM_EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_skipgram_embeddings.npy")
+SKIPGRAM_VOCAB_PATH = os.path.join(DATA_DIR, "text8_skipgram_vocab.json")
+
 
 # Hyperparameters
 config = {
