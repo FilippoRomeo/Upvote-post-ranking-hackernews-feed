@@ -13,7 +13,7 @@ import numpy as np
 # Configuration
 DATA_DIR = "data"
 TEXT8_PATH = os.path.join(DATA_DIR, "text8")
-VOCAB_PATH = os.path.join(DATA_DIR, "text8_vocab.pkl")
+VOCAB_PATH = os.path.join(DATA_DIR, "text8_vocab.json")
 MODEL_SAVE_PATH = os.path.join(DATA_DIR, "text8_cbow_model.pt")
 EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_embeddings.npy")
 
