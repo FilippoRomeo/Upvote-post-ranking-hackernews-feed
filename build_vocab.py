@@ -31,6 +31,11 @@ def save_vocab(word_to_ix, ix_to_word, path):
     with open(path, "wb") as f:
         pickle.dump((word_to_ix, ix_to_word), f)
 
+def load_vocab(path):
+    with open(path, "rb") as f:
+        word_to_ix, ix_to_word = pickle.load(f)
+    return word_to_ix, ix_to_word
+
 if __name__ == "__main__":
     # Check if text8 exists
     if not os.path.exists(TEXT8_PATH):
