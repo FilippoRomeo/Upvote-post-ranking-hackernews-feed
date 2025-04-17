@@ -2,6 +2,8 @@
 import re
 from collections import Counter
 import numpy as np
+from text8_tokenizer import preprocess_text8, build_vocab, save_vocab, load_vocab
+
 
 def simple_tokenizer(text):
     """Basic tokenizer that splits on whitespace and lowercases"""
