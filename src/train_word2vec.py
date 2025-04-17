@@ -27,7 +27,7 @@ config = {
     "embedding_dim": 300,  # Increased for better word representations
     "batch_size": 1024,    # Increased for more stable training
     "lr": 0.005,           # Higher learning rate for faster convergence
-    "epochs": 50,          # More epochs for better training
+    "epochs": 5,          # Too many trainings
     "min_word_count": 5,   # Lower count to keep more words
     "architecture": "CBOW",
     "patience": 5,         # More tolerant early stopping
