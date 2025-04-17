@@ -1,4 +1,4 @@
-#src/hn_regression_dataset.py
+# src/hn_regression_dataset.py
 import torch
 from torch.utils.data import Dataset
 import numpy as np
@@ -6,12 +6,12 @@ import numpy as np
 
 class HNDataset(Dataset):
     """
-    Dataset for Hacker News titles and upvote scores.
-    Each sample is (avg_title_embedding, upvote_score).
+    Dataset for Hacker News titles and scores.
+    Each sample is (avg_title_embedding, score).
     """
     def __init__(self, df, embeddings: np.ndarray, vocab: dict, tokenizer):
         self.titles = df['title'].tolist()
-        self.scores = df['upvote_score'].astype(float).tolist()
+        self.scores = df['score'].astype(float).tolist()  # Changed from 'upvote_score' to 'score'
         self.embeddings = embeddings
         self.vocab = vocab
         self.tokenizer = tokenizer
