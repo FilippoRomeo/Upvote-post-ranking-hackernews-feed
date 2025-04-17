@@ -16,7 +16,7 @@ conn = psycopg2.connect(
 )
 
 # Load the Word2Vec model (you can load the model you trained for CBOW)
-from src.word2vec_model import Word2VecModel
+from word2vec_model import Word2VecModel
 word2vec_model = Word2VecModel.load('data/text8_cbow_model.pt')
 
 # Load data and preprocess it
