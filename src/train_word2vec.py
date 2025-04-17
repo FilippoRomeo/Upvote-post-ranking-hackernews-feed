@@ -19,11 +19,11 @@ EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_embeddings.npy")
 
 # Hyperparameters
 CONTEXT_SIZE = 5
-EMBEDDING_DIM = 300
+EMBEDDING_DIM = 100  # Reduced from 300
 BATCH_SIZE = 512
-LR = 0.0005
-EPOCHS = 5
-MIN_WORD_COUNT = 10
+LR = 0.001  # Increased from 0.0005
+EPOCHS = 2  # Increased from 5
+MIN_WORD_COUNT = 5  # Reduced from 10
 
 def train():
     # Device setup
