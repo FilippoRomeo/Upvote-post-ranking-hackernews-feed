@@ -1,2 +1,4 @@
 data/tokens.json
 text8
+.gitignore
+.docignore
