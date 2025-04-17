@@ -5,9 +5,7 @@ import pandas as pd
 from word2vec_model import CBOWModel
 from word2vec_dataset import Word2VecDataset
 
-# src/preprocess_data.py
 def load_hacker_news_data(database_connection):
-    # First check what columns exist in the table
     column_check_query = """
     SELECT column_name 
     FROM information_schema.columns 
@@ -17,14 +15,11 @@ def load_hacker_news_data(database_connection):
     print("Available columns in hacker_news.items_by_year:")
     print(columns)
     
-    # Then try to find the correct column name for upvotes
     query = "SELECT * FROM hacker_news.items_by_year LIMIT 1"
     sample = pd.read_sql(query, database_connection)
     print("\nSample row:")
     print(sample)
     
-    # Based on the output, modify your actual query
-    # For example, if the column is called 'score':
     query = "SELECT title, score FROM hacker_news.items_by_year"
     df = pd.read_sql(query, database_connection)
     return df
@@ -34,25 +29,24 @@ def get_avg_embedding(title_tokens, word2vec_model):
     for token in title_tokens:
         try:
             embeddings.append(word2vec_model.get_embedding(token))
-            except KeyError:
-                continue
-            if embeddings:
-                return np.mean(embeddings, axis=0)
-            else:
-                return np.zeros(word2vec_model.vector_size)  # Default to zeros if no embeddings
+        except KeyError:
+            continue
+
+    if embeddings:
+        return np.mean(embeddings, axis=0)
+    else:
+        return np.zeros(word2vec_model.vector_size)  # Default to zeros if no embeddings
 
 def preprocess_data(df, word2vec_model):
-    # Tokenize the titles and get their average embeddings
     X = []
     y = []
     
     for index, row in df.iterrows():
-        tokens = row['title'].split()  # Simple space-based tokenization
+        tokens = row['title'].split()
         avg_embedding = get_avg_embedding(tokens, word2vec_model)
         X.append(avg_embedding)
         y.append(row['score'])
 
-    
     X = np.array(X)
     y = np.array(y)
     
