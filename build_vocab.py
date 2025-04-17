@@ -52,6 +52,6 @@ if __name__ == "__main__":
         word_to_ix, ix_to_word = build_vocab(tokens, VOCAB_SIZE)
         
         print("Saving vocabulary...")
-        save_vocab(word_to_ix, ix_to_word, VOCAB_PATH)
+        save_vocab_json(word_to_ix, ix_to_word, VOCAB_PATH)
         print(f"Vocabulary saved to {VOCAB_PATH}")
         print(f"Vocabulary size: {len(word_to_ix)}")
