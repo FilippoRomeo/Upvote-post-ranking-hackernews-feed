@@ -7,7 +7,7 @@ from word2vec_dataset import Word2VecDataset
 
 def load_hacker_news_data(database_connection):
     # Your database connection setup to fetch the data
-    query = "SELECT title, upvote_score FROM hacker_news"
+    query = "SELECT title, upvote_score FROM hacker_news.items_by_year"
     df = pd.read_sql(query, database_connection)
     return df
 
