@@ -1,12 +1,14 @@
 # src/test_cbow.py
 import torch
 import numpy as np
-import pickle
+import json
 import torch.nn.functional as F
 
 # Load vocab
-with open('data/text8_vocab.pkl', 'rb') as f:
-    word_to_ix, ix_to_word = pickle.load(f)
+with open('data/tokens.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+    word_to_ix = data["word_to_ix"]
+    ix_to_word = {int(k): v for k, v in data["ix_to_word"].items()}
 
 # Load embeddings
 embeddings = np.load('data/text8_embeddings.npy')
