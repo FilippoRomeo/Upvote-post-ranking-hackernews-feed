@@ -1,3 +1,4 @@
+# src/train_word2vec.py
 import torch 
 import torch.nn as nn 
 from torch.utils.data import DataLoader
@@ -26,13 +27,11 @@ config = {
     "embedding_dim": 300,  # Increased for better word representations
     "batch_size": 1024,    # Increased for more stable training
     "lr": 0.005,           # Higher learning rate for faster convergence
-    "epochs": 5,           # Too many trainings
+    "epochs": 5,          # Too many trainings
     "min_word_count": 5,   # Lower count to keep more words
     "architecture": "CBOW",
     "patience": 5,         # More tolerant early stopping
-    "eval_words": ["king", "queen", "apple", "computer", "car", "human"],  # Test words
-    "accumulation_steps": 2,  # Gradient accumulation steps
-    "warmup_steps": 4000,     # Warmup steps for learning rate
+    "eval_words": ["king", "queen", "apple", "computer", "car", "human"]  # Test words
 }
 
 def print_similar_words(word, model, word_to_ix, ix_to_word, top_n=10):
@@ -119,14 +118,8 @@ def train():
     model = CBOWModel(vocab_size, config["embedding_dim"]).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], 
                                 weight_decay=1e-5, amsgrad=True)
-    
-    # Warmup LR scheduler
-    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda step: min(1., step / config["warmup_steps"]))
-    
-    # ReduceLR scheduler
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', patience=2, factor=0.5, verbose=True)
-    
     loss_fn = nn.CrossEntropyLoss()
     
     # Watch model
@@ -142,7 +135,7 @@ def train():
         epoch_loss = 0
         model.train()
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch}/{config['epochs']}", unit="batch")
-        
+
         for batch_idx, (context, target) in enumerate(progress_bar):
             context, target = context.to(device), target.to(device)
 
@@ -151,11 +144,11 @@ def train():
             loss = loss_fn(output, target)
             loss.backward()
             
-            # Gradient accumulation
-            if (batch_idx + 1) % config["accumulation_steps"] == 0:
-                optimizer.step()
-                optimizer.zero_grad()
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             
+            optimizer.step()
+
             epoch_loss += loss.item()
             progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
 
@@ -167,9 +160,6 @@ def train():
                     "learning_rate": optimizer.param_groups[0]['lr']
                 })
 
-        # Update learning rate scheduler
-        lr_scheduler.step(epoch * len(dataloader) + batch_idx)
-        
         # Epoch evaluation
         avg_loss = epoch_loss / len(dataloader)
         scheduler.step(avg_loss)
