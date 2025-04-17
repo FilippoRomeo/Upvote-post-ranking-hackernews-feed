@@ -18,7 +18,7 @@ def load_hn_data():
         host="178.156.142.230",
         port="5432"
     )
-    df = pd.read_sql("SELECT title, upvote_score FROM hacker_news", conn)
+    df = pd.read_sql("SELECT title, upvote_score FROM hacker_news.items", conn)
     conn.close()
     return df
 
