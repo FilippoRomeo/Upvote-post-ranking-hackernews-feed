@@ -1,11 +1,10 @@
 # src/train_regressor.py
 import torch
 from torch.utils.data import DataLoader, random_split
-from hn_data_loader import load_hn_data, load_embeddings
 from hn_regression_dataset import HNDataset
 from regressor_model import RegressionModel
 from text8_tokenizer import simple_tokenizer
-
+from hn_data_loader import load_hn_data, load_embeddings
 
 def main():
     # 1. Load Hacker News data

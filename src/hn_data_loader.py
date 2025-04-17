@@ -1,9 +1,28 @@
+# src/hn_data_loader.py
+import pandas as pd
+import numpy as np
+import json
 import os
 import psycopg2
-import pandas as pd
 from datetime import datetime
-from datasets import Dataset, concatenate_datasets
+from datasets import Dataset, concatenate_datasets,load_from_disk
 from huggingface_hub import login
+
+def load_hn_data():
+    """Load Hacker News data from local disk"""
+    data_path = './hacker_news_titles'
+    if os.path.exists(data_path):
+        dataset = load_from_disk(data_path)
+        return dataset.to_pandas()
+    else:
+        raise FileNotFoundError(f"Hacker News data not found at {data_path}")
+
+def load_embeddings(embeddings_path, vocab_path):
+    """Load pre-trained embeddings and vocabulary"""
+    embeddings = np.load(embeddings_path)
+    with open(vocab_path, 'r') as f:
+        vocab = json.load(f)
+    return embeddings, vocab
 
 # ---- CONFIGURATION ---- #
 DB_CONN_STRING = 'postgres://sy91dhb:g5t49ao@178.156.142.230:5432/hd64m1ki'
