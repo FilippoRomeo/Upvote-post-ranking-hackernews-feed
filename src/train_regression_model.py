@@ -2,8 +2,8 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from src.regression_model import RegressionModel
-from src.preprocess_data import preprocess_data, load_hacker_news_data
+from regression_model import RegressionModel
+from preprocess_data import preprocess_data, load_hacker_news_data
 import psycopg2
 
 # Set the connection to the PostgreSQL database
