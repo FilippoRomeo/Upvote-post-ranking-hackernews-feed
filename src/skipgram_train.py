@@ -148,6 +148,9 @@ def train():
         
         for batch_idx, (context, target) in enumerate(progress_bar):
             context, target = context.to(device), target.to(device)
+            
+            # Reshape target for CrossEntropyLoss (should be [batch_size, vocab_size])
+            target = target.view(-1)  # Flatten target to a 1D tensor
 
             optimizer.zero_grad(set_to_none=True)
             output = model(context)
@@ -198,7 +201,7 @@ def train():
                 "optimizer_state_dict": optimizer.state_dict(),
                 "loss": best_loss,
                 "epoch": epoch
-            }, BEST_MODEL_PATH)
+            }, SKIPGRAM_BEST_MODEL_PATH)
         else:
             no_improvement += 1
             if no_improvement >= config["patience"]:
@@ -212,24 +215,24 @@ def train():
         "ix_to_word": ix_to_word,
         "config": config,
         "optimizer_state_dict": optimizer.state_dict()
-    }, MODEL_SAVE_PATH)
+    }, SKIPGRAM_MODEL_SAVE_PATH)
 
     # Save embeddings
     embeddings = model.embeddings.weight.data.cpu().numpy()
-    np.save(EMBEDDINGS_PATH, embeddings)
+    np.save(SKIPGRAM_EMBEDDINGS_PATH, embeddings)
 
     # Log artifacts
     artifact = wandb.Artifact('trained-model', type='model')
-    artifact.add_file(MODEL_SAVE_PATH)
-    artifact.add_file(BEST_MODEL_PATH)
-    artifact.add_file(EMBEDDINGS_PATH)
+    artifact.add_file(SKIPGRAM_MODEL_SAVE_PATH)
+    artifact.add_file(SKIPGRAM_BEST_MODEL_PATH)
+    artifact.add_file(SKIPGRAM_EMBEDDINGS_PATH)
     artifact.add_file(VOCAB_PATH)
     wandb.log_artifact(artifact)
 
     print(f"\nTraining completed in {(time.time() - start_time)/60:.2f} minutes")
-    print(f"Model saved to {MODEL_SAVE_PATH}")
-    print(f"Best model saved to {BEST_MODEL_PATH}")
-    print(f"Embeddings saved to {EMBEDDINGS_PATH}")
+    print(f"Model saved to {SKIPGRAM_MODEL_SAVE_PATH}")
+    print(f"Best model saved to {SKIPGRAM_BEST_MODEL_PATH}")
+    print(f"Embeddings saved to {SKIPGRAM_EMBEDDINGS_PATH}")
     
     # Finish wandb run
     wandb.finish()
