@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from word2vec_dataset import Word2VecDataset
 from word2vec_model import CBOWModel
-from text8_tokenizer import preprocess_text8, build_vocab, save_vocab
+from text8_tokenizer import preprocess_text8, build_vocab, save_vocab_json
 import time
 from tqdm import tqdm
 import os
@@ -42,7 +42,7 @@ def train():
     print(f"Vocabulary size: {vocab_size:,}")
 
     # Save vocabulary
-    save_vocab(word_to_ix, ix_to_word, VOCAB_PATH)
+    save_vocab_json(word_to_ix, ix_to_word, VOCAB_PATH)
     print(f"Vocabulary saved to {VOCAB_PATH}")
 
     # Create dataset and dataloader
