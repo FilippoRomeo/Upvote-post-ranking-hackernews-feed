@@ -19,8 +19,8 @@ conn = psycopg2.connect(
 from word2vec_model import CBOWModel
 
 # Initialize the CBOWModel
-vocab_size = 50000  # Set the appropriate vocabulary size (adjust according to your model)
-embedding_dim = 100  # Adjust according to your embedding size
+vocab_size = 71292  # Set the appropriate vocabulary size (adjust according to your model)
+embedding_dim = 500  # Adjust according to your embedding size
 word2vec_model = CBOWModel(vocab_size, embedding_dim)
 
 # Load the saved state_dict
