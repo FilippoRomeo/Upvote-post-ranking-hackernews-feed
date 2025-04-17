@@ -69,9 +69,17 @@ def train_skipgram(model, data, vocab_size, epochs=10, lr=0.01, negative_samples
             # Ensure target_labels shape matches the output shape
             if target_labels.shape != output.shape:
                 print(f"Warning: Target shape {target_labels.shape} does not match output shape {output.shape}")
+                print(f"Output: {output}")
+                print(f"Target labels: {target_labels}")
 
             # Calculate loss
-            loss = loss_fn(output, target_labels)
+            try:
+                loss = loss_fn(output, target_labels)
+            except ValueError as e:
+                print(f"Error calculating loss: {e}")
+                print(f"Output: {output}")
+                print(f"Target labels: {target_labels}")
+                continue  # Skip this example if error occurs
 
             optimizer.zero_grad()
             loss.backward()
