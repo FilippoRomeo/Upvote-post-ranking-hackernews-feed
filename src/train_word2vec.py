@@ -23,13 +23,13 @@ EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_embeddings.npy")
 # Hyperparameters
 config = {
     "context_size": 5,
-    "embedding_dim": 300,  # Increased for better word representations
-    "batch_size": 1024,    # Increased for more stable training
-    "lr": 0.005,           # Higher learning rate for faster convergence
+    "embedding_dim": 500,  # Increased for better word representations
+    "batch_size": 2048,    # Increased for more stable training
+    "lr": 0.0005,           # Higher learning rate for faster convergence
     "epochs": 5,           # Too many trainings
     "min_word_count": 5,   # Lower count to keep more words
     "architecture": "CBOW",
-    "patience": 5,         # More tolerant early stopping
+    "patience": 7,         # More tolerant early stopping
     "eval_words": ["king", "queen", "apple", "computer", "car", "human"],  # Test words
     "accumulation_steps": 2,  # Gradient accumulation steps
     "warmup_steps": 4000,     # Warmup steps for learning rate
