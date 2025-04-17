@@ -5,7 +5,7 @@ import json
 import torch.nn.functional as F
 
 # Load vocab
-with open('data/tokens.json', 'r', encoding='utf-8') as f:
+with open('data/text8_vocab.json', 'r', encoding='utf-8') as f:
     data = json.load(f)
     word_to_ix = data["word_to_ix"]
     ix_to_word = {int(k): v for k, v in data["ix_to_word"].items()}
