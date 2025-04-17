@@ -21,10 +21,10 @@ EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_embeddings.npy")
 # Hyperparameters
 config = {
     "context_size": 5,
-    "embedding_dim": 100,
-    "batch_size": 512,
-    "lr": 0.001,
-    "epochs": 20,  # Recommended to keep higher for actual training
+    "embedding_dim": 300,  # Increased from 100
+    "batch_size": 1024,    # Increased from 512
+    "lr": 0.01,           # Increased from 0.001
+    "epochs": 5,         # Word2vec needs more epochs
     "min_word_count": 5,
     "architecture": "CBOW"
 }
@@ -59,7 +59,7 @@ def train():
 
     # Initialize model
     model = CBOWModel(vocab_size, config["embedding_dim"]).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+    optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"], weight_decay=1e-5)
     loss_fn = nn.CrossEntropyLoss()
     
     # Watch model (optional)
@@ -68,6 +68,26 @@ def train():
     # Training loop
     print("\nStarting training...")
     start_time = time.time()
+    # Before training loop:
+    best_loss = float('inf')
+    patience = 3
+    no_improvement = 0
+
+    # Inside epoch loop (after calculating avg_loss):
+    if avg_loss < best_loss:
+        best_loss = avg_loss
+        no_improvement = 0
+        # Save best model
+        torch.save(model.state_dict(), "best_model.pt")
+    else:
+        no_improvement += 1
+        if no_improvement >= patience:
+            print(f"No improvement for {patience} epochs, early stopping")
+            break
+
+    # Add learning rate scheduling
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=1)
+    scheduler.step(avg_loss)
 
     for epoch in range(1, config["epochs"] + 1):
         epoch_loss = 0
@@ -86,12 +106,20 @@ def train():
             progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
             
             # Log batch metrics every 100 steps to avoid overcrowding
+            # Replace your wandb.log calls with this pattern:
+
+            # Inside batch loop (remove step=epoch)
             if batch_idx % 100 == 0:
                 wandb.log({
                     "batch_loss": loss.item(),
-                    "epoch": epoch,
-                    "batch": batch_idx
-                })
+                    "epoch": epoch
+                })  # Let W&B handle the step counting
+
+            # For epoch logging
+            wandb.log({
+                "epoch_loss": avg_loss,
+                "learning_rate": optimizer.param_groups[0]['lr']
+            })  # No step parameter
 
         avg_loss = epoch_loss / len(dataloader)
         print(f"Epoch {epoch} complete - Avg Loss: {avg_loss:.4f}")
