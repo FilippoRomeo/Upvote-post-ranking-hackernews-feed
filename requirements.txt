@@ -5,3 +5,4 @@ psycopg2-binary
 scikit-learn
 pandas
 matplotlib
+psycopg2-binary
