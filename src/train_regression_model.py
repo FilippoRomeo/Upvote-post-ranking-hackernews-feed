@@ -23,8 +23,12 @@ vocab_size = 50000  # Set the appropriate vocabulary size (adjust according to y
 embedding_dim = 100  # Adjust according to your embedding size
 word2vec_model = CBOWModel(vocab_size, embedding_dim)
 
-# Load the saved state_dict into the model
-word2vec_model.load_state_dict(torch.load('data/text8_cbow_model.pt'))
+# Load the saved state_dict
+checkpoint = torch.load('data/text8_cbow_model.pt')
+
+# Extract only the model weights (excluding the extra information like optimizer_state_dict)
+model_state_dict = checkpoint['model_state_dict']  # Assuming the model state is under this key
+word2vec_model.load_state_dict(model_state_dict, strict=False)
 
 # Load data and preprocess it
 df = load_hacker_news_data(conn)
