@@ -104,33 +104,33 @@ def train():
 
             epoch_loss += loss.item()
             progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
-            
-            # Log batch metrics every 100 steps to avoid overcrowding
-            # Replace your wandb.log calls with this pattern:
 
-            # Inside batch loop (remove step=epoch)
             if batch_idx % 100 == 0:
-                wandb.log({
-                    "batch_loss": loss.item(),
-                    "epoch": epoch
-                })  # Let W&B handle the step counting
-
-            # For epoch logging
-            wandb.log({
-                "epoch_loss": avg_loss,
-                "learning_rate": optimizer.param_groups[0]['lr']
-            })  # No step parameter
+                wandb.log({"batch_loss": loss.item(), "epoch": epoch})
 
         avg_loss = epoch_loss / len(dataloader)
         print(f"Epoch {epoch} complete - Avg Loss: {avg_loss:.4f}")
-        
-        # Log epoch metrics
+
+        # Logging after the epoch
         wandb.log({
             "epoch_loss": avg_loss,
             "epoch": epoch,
             "learning_rate": optimizer.param_groups[0]['lr'],
             "epoch_time": (time.time() - start_time)/60
-        }, step=epoch)
+        })
+
+        scheduler.step(avg_loss)
+
+        # Early stopping logic
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            no_improvement = 0
+            torch.save(model.state_dict(), "best_model.pt")
+        else:
+            no_improvement += 1
+            if no_improvement >= patience:
+                print(f"No improvement for {patience} epochs, early stopping")
+                break
 
     # Save model and embeddings
     torch.save({
