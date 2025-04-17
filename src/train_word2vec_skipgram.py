@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from word2vec_dataset import Word2VecDataset
 from word2vec_model import SkipGramModel
-from text8_tokenizer import load_vocab, preprocess_text8  # Correct import
+from text8_tokenizer import load_vocab_json, preprocess_text8  # Correct import
 import time
 from tqdm import tqdm
 import os
@@ -13,7 +13,7 @@ import numpy as np
 # Configuration (same as CBOW)
 DATA_DIR = "data"
 TEXT8_PATH = os.path.join(DATA_DIR, "text8")
-VOCAB_PATH = os.path.join(DATA_DIR, "text8_vocab.pkl")  # Reuse CBOW's vocab
+VOCAB_PATH = os.path.join(DATA_DIR, "text8_vocab.json")  # Reuse CBOW's vocab
 MODEL_SAVE_PATH = os.path.join(DATA_DIR, "text8_skipgram_model.pt")
 EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_skipgram_embeddings.npy")
 
@@ -29,7 +29,7 @@ def train_skipgram():
     print(f"Using device: {device}")
 
     # Load existing vocabulary (from CBOW training)
-    word_to_ix, ix_to_word = load_vocab(VOCAB_PATH)  # Implement this if missing
+    word_to_ix, ix_to_word = load_vocab_json(VOCAB_PATH) # Implement this if missing
     vocab_size = len(word_to_ix)
     print(f"Loaded vocabulary size: {vocab_size:,}")
 
