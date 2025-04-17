@@ -9,6 +9,7 @@ import time
 from tqdm import tqdm
 import os
 import numpy as np  
+import torch.nn.functional as F
 import wandb
 
 # Configuration
@@ -29,6 +30,28 @@ config = {
     "min_word_count": 7,
     "architecture": "CBOW"
 }
+
+def print_similar_words(word, model, word_to_ix, ix_to_word, top_n=10):
+    if word not in word_to_ix:
+        print(f"'{word}' not in vocabulary.")
+        return
+
+    model.eval()
+    with torch.no_grad():
+        embeddings = model.get_embeddings()
+        norm_embeddings = F.normalize(torch.tensor(embeddings), p=2, dim=1)
+
+        word_idx = word_to_ix[word]
+        word_embedding = norm_embeddings[word_idx].unsqueeze(0)
+
+        cosine_similarities = F.cosine_similarity(word_embedding, norm_embeddings)
+
+        # Exclude the word itself
+        top_indices = cosine_similarities.topk(top_n + 1).indices[1:].tolist()
+        similar_words = [ix_to_word[str(i)] for i in top_indices]
+
+        print(f"\nTop {top_n} words similar to '{word}':")
+        print(", ".join(similar_words))
 
 def train():
     # Reproducibility
@@ -104,6 +127,9 @@ def train():
                     "batch_loss": loss.item(),
                     "epoch": epoch
                 })
+
+                # Print most similar words to a test word
+                print_similar_words("apple", model, word_to_ix, ix_to_word, top_n=10)
 
         avg_loss = epoch_loss / len(dataloader)
         print(f"Epoch {epoch} complete - Avg Loss: {avg_loss:.4f}")
