@@ -17,7 +17,14 @@ conn = psycopg2.connect(
 
 # Load the Word2Vec model (you can load the model you trained for CBOW)
 from word2vec_model import CBOWModel
-word2vec_model = CBOWModel.load('data/text8_cbow_model.pt')
+
+# Initialize the CBOWModel
+vocab_size = 50000  # Set the appropriate vocabulary size (adjust according to your model)
+embedding_dim = 100  # Adjust according to your embedding size
+word2vec_model = CBOWModel(vocab_size, embedding_dim)
+
+# Load the saved state_dict into the model
+word2vec_model.load_state_dict(torch.load('data/text8_cbow_model.pt'))
 
 # Load data and preprocess it
 df = load_hacker_news_data(conn)
