@@ -9,6 +9,7 @@ import time
 from tqdm import tqdm
 import os
 import numpy as np  
+import wandb
 
 # Configuration
 DATA_DIR = "data"
@@ -18,18 +19,24 @@ MODEL_SAVE_PATH = os.path.join(DATA_DIR, "text8_cbow_model.pt")
 EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_embeddings.npy")
 
 # Hyperparameters
-CONTEXT_SIZE = 5
-EMBEDDING_DIM = 100  # Reduced from 300
-BATCH_SIZE = 512
-LR = 0.001  # Increased from 0.0005
-EPOCHS = 2  # Increased from 5
-MIN_WORD_COUNT = 5  # Reduced from 10
+config = {
+    "context_size": 5,
+    "embedding_dim": 100,
+    "batch_size": 512,
+    "lr": 0.001,
+    "epochs": 20,  # Recommended to keep higher for actual training
+    "min_word_count": 5,
+    "architecture": "CBOW"
+}
 
 def train():
     # Device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
-
+    
+    # Initialize wandb
+    wandb.init(project="word2vec-cbow", config=config)
+    
     # Load and preprocess text8 data
     print("Loading and tokenizing text8 data...")
     tokens = preprocess_text8(TEXT8_PATH)
@@ -37,32 +44,36 @@ def train():
 
     # Build vocabulary
     print("Building vocabulary...")
-    word_to_ix, ix_to_word, vocab = build_vocab(tokens, min_count=MIN_WORD_COUNT)
+    word_to_ix, ix_to_word, vocab = build_vocab(tokens, min_count=config["min_word_count"])
     vocab_size = len(word_to_ix)
     print(f"Vocabulary size: {vocab_size:,}")
+    wandb.config.update({"vocab_size": vocab_size})  # Log dynamic config
 
     # Save vocabulary
     save_vocab_json(word_to_ix, ix_to_word, VOCAB_PATH)
     print(f"Vocabulary saved to {VOCAB_PATH}")
 
     # Create dataset and dataloader
-    dataset = Word2VecDataset(tokens, word_to_ix, ix_to_word, context_size=CONTEXT_SIZE)
-    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+    dataset = Word2VecDataset(tokens, word_to_ix, ix_to_word, context_size=config["context_size"])
+    dataloader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
 
     # Initialize model
-    model = CBOWModel(vocab_size, EMBEDDING_DIM).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    model = CBOWModel(vocab_size, config["embedding_dim"]).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
     loss_fn = nn.CrossEntropyLoss()
+    
+    # Watch model (optional)
+    wandb.watch(model, loss_fn, log="all", log_freq=100)
 
     # Training loop
     print("\nStarting training...")
     start_time = time.time()
 
-    for epoch in range(1, EPOCHS + 1):
+    for epoch in range(1, config["epochs"] + 1):
         epoch_loss = 0
-        progress_bar = tqdm(dataloader, desc=f"Epoch {epoch}/{EPOCHS}", unit="batch")
+        progress_bar = tqdm(dataloader, desc=f"Epoch {epoch}/{config['epochs']}", unit="batch")
 
-        for context, target in progress_bar:
+        for batch_idx, (context, target) in enumerate(progress_bar):
             context, target = context.to(device), target.to(device)
 
             optimizer.zero_grad()
@@ -73,9 +84,25 @@ def train():
 
             epoch_loss += loss.item()
             progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
+            
+            # Log batch metrics every 100 steps to avoid overcrowding
+            if batch_idx % 100 == 0:
+                wandb.log({
+                    "batch_loss": loss.item(),
+                    "epoch": epoch,
+                    "batch": batch_idx
+                })
 
         avg_loss = epoch_loss / len(dataloader)
         print(f"Epoch {epoch} complete - Avg Loss: {avg_loss:.4f}")
+        
+        # Log epoch metrics
+        wandb.log({
+            "epoch_loss": avg_loss,
+            "epoch": epoch,
+            "learning_rate": optimizer.param_groups[0]['lr'],
+            "epoch_time": (time.time() - start_time)/60
+        }, step=epoch)
 
     # Save model and embeddings
     torch.save({
@@ -83,17 +110,27 @@ def train():
         "word_to_ix": word_to_ix,
         "ix_to_word": ix_to_word,
         "config": {
-            "embedding_dim": EMBEDDING_DIM,
-            "context_size": CONTEXT_SIZE
+            "embedding_dim": config["embedding_dim"],
+            "context_size": config["context_size"]
         }
     }, MODEL_SAVE_PATH)
 
     embeddings = model.get_embeddings()
     np.save(EMBEDDINGS_PATH, embeddings)
 
+    # Log artifacts
+    artifact = wandb.Artifact('trained-model', type='model')
+    artifact.add_file(MODEL_SAVE_PATH)
+    artifact.add_file(EMBEDDINGS_PATH)
+    artifact.add_file(VOCAB_PATH)
+    wandb.log_artifact(artifact)
+
     print(f"\nTraining completed in {(time.time() - start_time)/60:.2f} minutes")
     print(f"Model saved to {MODEL_SAVE_PATH}")
     print(f"Embeddings saved to {EMBEDDINGS_PATH}")
+    
+    # Finish wandb run
+    wandb.finish()
 
 if __name__ == "__main__":
     train()
