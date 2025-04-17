@@ -39,7 +39,7 @@ def get_skipgram_data(text, word_to_ix, window_size=2):
 
 # 3. Training Function
 def train_skipgram(model, data, vocab_size, epochs=10, lr=0.01, negative_samples=5):
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.BCEWithLogitsLoss()  # Use BCE for binary classification
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     for epoch in range(epochs):
@@ -60,11 +60,17 @@ def train_skipgram(model, data, vocab_size, epochs=10, lr=0.01, negative_samples
             # Get the output from the model for the target word
             output = model(target_tensor)  # shape: [1, vocab_size]
 
-            # Convert to probabilities using softmax for each sampled word
+            # Convert to probabilities using BCEWithLogitsLoss
             sampled_indices = torch.tensor(sampled_words, dtype=torch.long)
 
-            # The model is expected to return logits, apply softmax to compute loss
-            loss = loss_fn(output.squeeze(0), sampled_indices)
+            # Flatten output to match the target's shape for binary classification
+            output = output.squeeze(0)[sampled_indices]
+
+            # Binary classification target: 1 for positive (context), 0 for negative samples
+            target_labels = torch.tensor([1] + [0] * negative_samples, dtype=torch.float32)
+
+            # Calculate loss
+            loss = loss_fn(output, target_labels)
 
             optimizer.zero_grad()
             loss.backward()
