@@ -22,11 +22,11 @@ EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_embeddings.npy")
 # Hyperparameters
 config = {
     "context_size": 5,
-    "embedding_dim": 300,  # Increased from 100
-    "batch_size": 1024,    # Increased from 512
-    "lr": 0.01,            # Increased from 0.001
+    "embedding_dim": 100,  # Increased from 100
+    "batch_size": 512,    # Decreased from 1024
+    "lr": 0.001,            # Increased from 0.001
     "epochs": 5,           # Word2vec needs more epochs
-    "min_word_count": 5,
+    "min_word_count": 7,
     "architecture": "CBOW"
 }
 
