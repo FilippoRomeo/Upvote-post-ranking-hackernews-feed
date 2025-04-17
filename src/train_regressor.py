@@ -1,9 +1,10 @@
 # src/train_regressor.py
 import torch
 from torch.utils.data import DataLoader, random_split
-from hn_data_loader import load_hn_data, load_embeddings, tokenize
+from hn_data_loader import load_hn_data, load_embeddings
 from hn_regression_dataset import HNDataset
 from regressor_model import RegressionModel
+from text8_tokenizer import simple_tokenizer
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
     )
 
     # 3. Prepare dataset
-    dataset = HNDataset(df, embeddings, vocab, tokenize)
+    dataset = HNDataset(df, embeddings, vocab, simple_tokenizer)
 
     # 4. Split into train/validation
     train_size = int(0.8 * len(dataset))
