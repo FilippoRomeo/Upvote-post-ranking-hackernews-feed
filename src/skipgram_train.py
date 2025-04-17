@@ -38,7 +38,7 @@ def get_skipgram_data(text, word_to_ix, window_size=2):
     return data
 
 # 3. Training Function
-def train_skipgram(model, data, vocab_size, epochs=10, lr=0.01):
+def train_skipgram(model, data, vocab_size, epochs=10, lr=0.01, negative_samples=5):
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -50,8 +50,21 @@ def train_skipgram(model, data, vocab_size, epochs=10, lr=0.01):
             target_tensor = torch.tensor([target], dtype=torch.long)
             context_tensor = torch.tensor([context], dtype=torch.long)
 
+            # Negative Sampling: randomly sample negative words
+            neg_samples = random.sample(range(vocab_size), negative_samples)
+            neg_samples = [sample for sample in neg_samples if sample != context]  # Ensure we don't pick the context word
+
+            # Concatenate positive and negative samples
+            sampled_words = [context] + neg_samples
+
+            # Get the output from the model for the target word
             output = model(target_tensor)  # shape: [1, vocab_size]
-            loss = loss_fn(output, context_tensor)
+
+            # Convert to probabilities using softmax for each sampled word
+            sampled_indices = torch.tensor(sampled_words, dtype=torch.long)
+
+            # The model is expected to return logits, apply softmax to compute loss
+            loss = loss_fn(output.squeeze(0), sampled_indices)
 
             optimizer.zero_grad()
             loss.backward()
@@ -75,7 +88,7 @@ if __name__ == "__main__":
     embedding_dim = 50
     model = SkipGramModel(vocab_size, embedding_dim)
 
-    train_skipgram(model, data, vocab_size, epochs=100, lr=0.01)
+    train_skipgram(model, data, vocab_size, epochs=100, lr=5e-4)
 
     # Save embeddings
     embeddings = model.get_embeddings()
