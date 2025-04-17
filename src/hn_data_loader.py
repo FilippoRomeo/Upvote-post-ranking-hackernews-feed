@@ -3,7 +3,7 @@ import psycopg2
 import pandas as pd
 import numpy as np
 import json
-from text8_tokenizer import tokenize  # assuming tokenize() is exposed
+from text8_tokenizer import simple_tokenizer  # assuming tokenize() is exposed
 
 
 def load_hn_data():
