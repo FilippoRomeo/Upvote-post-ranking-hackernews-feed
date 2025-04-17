@@ -1,9 +1,9 @@
 import os
-import pickle
+import json
 from collections import Counter
 
 TEXT8_PATH = "text8"  # Changed from glove file to text8
-VOCAB_PATH = "data/vocab.pkl"  # Changed output path
+VOCAB_PATH = "data/tokens.json"  # Changed output path
 VOCAB_SIZE = 10000
 
 def preprocess_text8(path):
@@ -25,11 +25,13 @@ def build_vocab(tokens, vocab_size):
     
     return word_to_ix, ix_to_word
 
-def save_vocab(word_to_ix, ix_to_word, path):
-    """Save vocabulary to file"""
-    os.makedirs(os.path.dirname(path), exist_ok=True)  # Create dir if needed
-    with open(path, "wb") as f:
-        pickle.dump((word_to_ix, ix_to_word), f)
+def save_vocab_json(word_to_ix, ix_to_word, path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({
+            "word_to_ix": word_to_ix,
+            "ix_to_word": {str(k): v for k, v in ix_to_word.items()}  # convert keys to str for JSON
+        }, f, indent=2)
 
 def load_vocab(path):
     with open(path, "rb") as f:
