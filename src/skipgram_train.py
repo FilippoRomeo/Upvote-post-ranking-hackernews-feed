@@ -1,116 +1,235 @@
-# src/skipgram_train.py
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
+from word2vec_dataset import Word2VecDataset  # Assume you've implemented dataset class
+from word2vec_model import SkipGramModel  # Implement this model based on SkipGram
+from text8_tokenizer import preprocess_text8, build_vocab, save_vocab_json
+import time
+from tqdm import tqdm
+import os
+import numpy as np  
 import torch.nn.functional as F
-import random
+import wandb
 from collections import defaultdict
-import numpy as np
 
-# 1. Model Definition
-class SkipGramModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim):
-        super().__init__()
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.linear = nn.Linear(embedding_dim, vocab_size)
+# Configuration
+DATA_DIR = "data"
+TEXT8_PATH = os.path.join(DATA_DIR, "text8")
+VOCAB_PATH = os.path.join(DATA_DIR, "text8_vocab.json")
+MODEL_SAVE_PATH = os.path.join(DATA_DIR, "text8_skipgram_model.pt")
+BEST_MODEL_PATH = os.path.join(DATA_DIR, "best_model.pt")
+EMBEDDINGS_PATH = os.path.join(DATA_DIR, "text8_embeddings.npy")
+
+# Hyperparameters
+config = {
+    "context_size": 5,
+    "embedding_dim": 300,  # Increased for better word representations
+    "batch_size": 1024,    # Increased for more stable training
+    "lr": 0.005,           # Higher learning rate for faster convergence
+    "epochs": 5,           # Too many trainings
+    "min_word_count": 5,   # Lower count to keep more words
+    "architecture": "SkipGram",
+    "patience": 5,         # More tolerant early stopping
+    "eval_words": ["king", "queen", "apple", "computer", "car", "human"],  # Test words
+    "accumulation_steps": 2,  # Gradient accumulation steps
+    "warmup_steps": 4000,     # Warmup steps for learning rate
+}
+
+def print_similar_words(word, model, word_to_ix, ix_to_word, top_n=10):
+    """Print most similar words with their similarity scores"""
+    if word not in word_to_ix:
+        print(f"'{word}' not in vocabulary.")
+        return
+
+    model.eval()
+    with torch.no_grad():
+        embeddings = model.embeddings.weight.data.cpu()
+        norm_embeddings = F.normalize(embeddings, p=2, dim=1)
+        
+        word_idx = word_to_ix[word]
+        word_vec = norm_embeddings[word_idx].unsqueeze(0)
+        
+        similarities = F.cosine_similarity(word_vec, norm_embeddings)
+        top_values, top_indices = similarities.topk(top_n + 1)  # +1 to exclude self
+        
+        print(f"\nTop {top_n} words similar to '{word}':")
+        for i, (score, idx) in enumerate(zip(top_values[1:], top_indices[1:]), 1):
+            print(f"{i}. {ix_to_word[idx.item()]} ({score:.3f})")
+
+def evaluate_similarity(model, word_to_ix, ix_to_word, words):
+    """Evaluate and log similarity for test words"""
+    results = defaultdict(dict)
+    model.eval()
+    with torch.no_grad():
+        embeddings = model.embeddings.weight.data.cpu()
+        norm_embeddings = F.normalize(embeddings, p=2, dim=1)
+        
+        for word in words:
+            if word in word_to_ix:
+                idx = word_to_ix[word]
+                word_vec = norm_embeddings[idx].unsqueeze(0)
+                similarities = F.cosine_similarity(word_vec, norm_embeddings)
+                top_values, top_indices = similarities.topk(6)  # Top 5 + self
+                
+                for val, idx in zip(top_values[1:], top_indices[1:]):  # Skip self
+                    results[word][ix_to_word[idx.item()]] = val.item()
     
-    def forward(self, target):
-        embeds = self.embeddings(target)        # [batch_size, embedding_dim]
-        out = self.linear(embeds)               # [batch_size, vocab_size]
-        return out
+    # Log to wandb
+    wandb.log({"word_similarities": wandb.Table(
+        columns=["word"] + [f"top_{i}" for i in range(1, 6)],
+        data=[[w] + list(results[w].keys()) for w in words if w in results]
+    )})
 
-    def get_embeddings(self):
-        return self.embeddings.weight.data.cpu().numpy()
+def train():
+    # Reproducibility
+    torch.manual_seed(42)
+    np.random.seed(42)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
-# 2. Dataset Functions
-def build_vocab(text):
-    vocab = set(text)
-    word_to_ix = {word: i for i, word in enumerate(vocab)}
-    ix_to_word = {i: word for word, i in word_to_ix.items()}
-    return word_to_ix, ix_to_word
+    # Device setup
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    
+    # Initialize wandb
+    wandb.init(project="word2vec-skipgram", config=config, 
+              settings=wandb.Settings(start_method="thread"))
+    
+    # Load and preprocess text8 data
+    print("Loading and tokenizing text8 data...")
+    tokens = preprocess_text8(TEXT8_PATH)
+    print(f"Total tokens: {len(tokens):,}")
 
-def get_skipgram_data(text, word_to_ix, window_size=2):
-    data = []
-    for i in range(window_size, len(text) - window_size):
-        target = text[i]
-        context = text[i - window_size:i] + text[i + 1:i + window_size + 1]
-        for ctx in context:
-            data.append((word_to_ix[target], word_to_ix[ctx]))
-    return data
-
-# 3. Training Function
-def train_skipgram(model, data, vocab_size, epochs=10, lr=0.01, negative_samples=5):
-    loss_fn = nn.BCEWithLogitsLoss()  # Use BCE for binary classification
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    for epoch in range(epochs):
-        total_loss = 0
-        random.shuffle(data)
-
-        for target, context in data:
-            target_tensor = torch.tensor([target], dtype=torch.long)
-            context_tensor = torch.tensor([context], dtype=torch.long)
-
-            # Negative Sampling: randomly sample negative words
-            neg_samples = random.sample(range(vocab_size), negative_samples)
-            neg_samples = [sample for sample in neg_samples if sample != context]  # Ensure we don't pick the context word
-
-            # Concatenate positive and negative samples
-            sampled_words = [context] + neg_samples
-
-            # Get the output from the model for the target word
-            output = model(target_tensor)  # shape: [1, vocab_size]
-
-            # Select the output logits corresponding to the sampled words
-            output = output.squeeze(0)[sampled_words]  # Extract logits for the context and negative samples
-
-            # Binary classification target: 1 for positive (context), 0 for negative samples
-            target_labels = torch.tensor([1] + [0] * negative_samples, dtype=torch.float32)
-
-            # Ensure target_labels shape matches the output shape
-            if target_labels.shape != output.shape:
-                print(f"Warning: Target shape {target_labels.shape} does not match output shape {output.shape}")
-                print(f"Output: {output}")
-                print(f"Target labels: {target_labels}")
-
-            # Calculate loss
-            try:
-                loss = loss_fn(output, target_labels)
-            except ValueError as e:
-                print(f"Error calculating loss: {e}")
-                print(f"Output: {output}")
-                print(f"Target labels: {target_labels}")
-                continue  # Skip this example if error occurs
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            total_loss += loss.item()
-
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss:.4f}")
-
-# 4. Run Training
-if __name__ == "__main__":
-    # Sample text
-    text = "we are learning the skip gram model using pytorch word embeddings for ai projects".lower().split()
-
-    # Build vocabulary and training pairs
-    word_to_ix, ix_to_word = build_vocab(text)
-    data = get_skipgram_data(text, word_to_ix, window_size=2)
-
-    # Initialize and train model
+    # Build vocabulary
+    print("Building vocabulary...")
+    word_to_ix, ix_to_word, vocab = build_vocab(tokens, min_count=config["min_word_count"])
     vocab_size = len(word_to_ix)
-    embedding_dim = 50
-    model = SkipGramModel(vocab_size, embedding_dim)
+    print(f"Vocabulary size: {vocab_size:,}")
+    
+    # Save vocabulary
+    save_vocab_json(word_to_ix, ix_to_word, VOCAB_PATH)
+    print(f"Vocabulary saved to {VOCAB_PATH}")
 
-    train_skipgram(model, data, vocab_size, epochs=100, lr=5e-4)
+    # Create dataset and dataloader
+    dataset = Word2VecDataset(tokens, word_to_ix, ix_to_word, context_size=config["context_size"])
+    dataloader = DataLoader(dataset, batch_size=config["batch_size"], 
+                          shuffle=True, num_workers=4, pin_memory=True)
+
+    # Initialize model
+    model = SkipGramModel(vocab_size, config["embedding_dim"]).to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], 
+                                weight_decay=1e-5, amsgrad=True)
+    
+    # Warmup LR scheduler
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda step: min(1., step / config["warmup_steps"]))
+    
+    # ReduceLR scheduler
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', patience=2, factor=0.5, verbose=True)
+    
+    loss_fn = nn.CrossEntropyLoss()
+    
+    # Watch model
+    wandb.watch(model, loss_fn, log="parameters", log_freq=500)
+
+    # Training setup
+    print("\nStarting training...")
+    start_time = time.time()
+    best_loss = float('inf')
+    no_improvement = 0
+
+    for epoch in range(1, config["epochs"] + 1):
+        epoch_loss = 0
+        model.train()
+        progress_bar = tqdm(dataloader, desc=f"Epoch {epoch}/{config['epochs']}", unit="batch")
+        
+        for batch_idx, (context, target) in enumerate(progress_bar):
+            context, target = context.to(device), target.to(device)
+
+            optimizer.zero_grad(set_to_none=True)
+            output = model(context)
+            loss = loss_fn(output, target)
+            loss.backward()
+            
+            # Gradient accumulation
+            if (batch_idx + 1) % config["accumulation_steps"] == 0:
+                optimizer.step()
+                optimizer.zero_grad()
+            
+            epoch_loss += loss.item()
+            progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
+
+            # Log batch metrics
+            if batch_idx % 500 == 0:
+                wandb.log({
+                    "batch_loss": loss.item(),
+                    "epoch_progress": epoch + batch_idx/len(dataloader),
+                    "learning_rate": optimizer.param_groups[0]['lr']
+                })
+
+        # Update learning rate scheduler
+        lr_scheduler.step(epoch * len(dataloader) + batch_idx)
+        
+        # Epoch evaluation
+        avg_loss = epoch_loss / len(dataloader)
+        scheduler.step(avg_loss)
+        
+        # Evaluate word similarities
+        if epoch % 2 == 0 or epoch == 1:
+            evaluate_similarity(model, word_to_ix, ix_to_word, config["eval_words"])
+            print_similar_words(config["eval_words"][0], model, word_to_ix, ix_to_word)
+
+        # Log epoch metrics
+        wandb.log({
+            "epoch_loss": avg_loss,
+            "epoch": epoch,
+            "epoch_time": (time.time() - start_time) / 60
+        })
+
+        # Early stopping and model saving
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            no_improvement = 0
+            torch.save({
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "loss": best_loss,
+                "epoch": epoch
+            }, BEST_MODEL_PATH)
+        else:
+            no_improvement += 1
+            if no_improvement >= config["patience"]:
+                print(f"\nEarly stopping at epoch {epoch}")
+                break
+
+    # Final save
+    torch.save({
+        "model_state_dict": model.state_dict(),
+        "word_to_ix": word_to_ix,
+        "ix_to_word": ix_to_word,
+        "config": config,
+        "optimizer_state_dict": optimizer.state_dict()
+    }, MODEL_SAVE_PATH)
 
     # Save embeddings
-    embeddings = model.get_embeddings()
-    np.save("skipgram_embeddings.npy", embeddings)
+    embeddings = model.embeddings.weight.data.cpu().numpy()
+    np.save(EMBEDDINGS_PATH, embeddings)
 
-    # Optional: print some example word vectors
-    print("\nSample word vectors:")
-    for word in ["skip", "model", "ai", "pytorch"]:
-        idx = word_to_ix[word]
-        print(f"{word}: {embeddings[idx][:5]}...")  # print first 5 dims
+    # Log artifacts
+    artifact = wandb.Artifact('trained-model', type='model')
+    artifact.add_file(MODEL_SAVE_PATH)
+    artifact.add_file(BEST_MODEL_PATH)
+    artifact.add_file(EMBEDDINGS_PATH)
+    artifact.add_file(VOCAB_PATH)
+    wandb.log_artifact(artifact)
+
+    print(f"\nTraining completed in {(time.time() - start_time)/60:.2f} minutes")
+    print(f"Model saved to {MODEL_SAVE_PATH}")
+    print(f"Best model saved to {BEST_MODEL_PATH}")
+    print(f"Embeddings saved to {EMBEDDINGS_PATH}")
+    
+    # Finish wandb run
+    wandb.finish()
+
+if __name__ == "__main__":
+    train()
