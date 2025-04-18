@@ -17,7 +17,7 @@ from DataPrep.title_to_indices import titles_to_indices
 data_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_dataset.pt")
 embedding_path = os.path.join(BASE_DIR, "data", "text8_embeddings.npy")
 vocab_path = os.path.join(BASE_DIR, "data", "text8_vocab.json")
-model_path = os.path.join(BASE_DIR, "UpvotePredictionModel", "best_model.pt")
+model_path = os.path.join(BASE_DIR, "data", "best_model.pt")
 csv_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_2010_stories.csv")
 
 def load_vocab():
