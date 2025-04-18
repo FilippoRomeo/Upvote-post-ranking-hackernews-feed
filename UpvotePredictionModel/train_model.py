@@ -37,7 +37,12 @@ class AvgEmbeddingRegressor(nn.Module):
         super().__init__()
         vocab_size, emb_dim = embedding_matrix.size()
         self.embedding = nn.Embedding.from_pretrained(embedding_matrix, freeze=True)
-        self.linear = nn.Linear(emb_dim, 1)
+        self.linear = nn.Sequential(
+            nn.Linear(emb_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+
 
     def forward(self, x):
         # x: [batch_size, seq_len]
