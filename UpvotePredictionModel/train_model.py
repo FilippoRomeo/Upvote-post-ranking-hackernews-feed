@@ -40,7 +40,7 @@ class UpvotePredictor(nn.Module):
         super().__init__()
         vocab_size, emb_dim = embedding_matrix.size()
         
-        self.embedding = nn.Embedding.from_pretrained(embedding_matrix, freeze=True)
+        self.embedding = nn.Embedding.from_pretrained(embedding_matrix, freeze=False)
         
         # Enhanced attention mechanism
         self.attention = nn.Sequential(
