@@ -8,6 +8,10 @@ nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
 
 def tokenize_title(title):
+    # Handle non-string inputs (NaN, None, etc.)
+    if not isinstance(title, str):
+        return []
+        
     # Step 1: Convert to lowercase
     title = title.lower()
     
