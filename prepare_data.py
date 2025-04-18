@@ -12,7 +12,8 @@ BASE_DIR = os.path.dirname(__file__)
 data_dir = os.path.join(BASE_DIR, "data")
 csv_path = os.path.join(data_dir, "fetch_data", "hn_2010_stories.csv")
 vocab_path = os.path.join(data_dir, "text8_vocab.json")
-output_path = os.path.join(data_dir, "hn_dataset.pt")
+output_path = os.path.join(data_dir, "fetch_data", "hn_dataset.pt")
+
 
 # === Step 1: Load raw Hacker News data ===
 print("📥 Loading raw data...")
