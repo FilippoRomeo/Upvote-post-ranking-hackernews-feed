@@ -13,7 +13,7 @@ embedding_path = os.path.join(BASE_DIR, "data", "text8_vectors.pt")
 # === Load Dataset ===
 print("📦 Loading dataset...")
 dataset = torch.load(data_path)
-X, y = dataset['X'], dataset['y']
+X, y = dataset['inputs'], dataset['targets']
 print(f"✅ Loaded dataset with shape {X.shape} and targets shape {y.shape}")
 
 # === Load CBOW embeddings ===
