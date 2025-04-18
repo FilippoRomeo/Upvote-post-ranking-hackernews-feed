@@ -4,12 +4,13 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, random_split
+from tqdm import tqdm  # for progress bar
+import wandb  # Optional: only if using Weights & Biases
 
 # === Paths ===
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # Go up one level to reach the root directory
 data_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_dataset.pt")
 embedding_path = os.path.join(BASE_DIR, "data", "text8_embeddings.npy")
-
 
 # === Load Dataset ===
 print("📦 Loading dataset...")
@@ -31,45 +32,59 @@ train_ds, val_ds = random_split(dataset, [train_size, val_size])
 train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
 val_loader = DataLoader(val_ds, batch_size=64)
 
-# === Model ===
-class AvgEmbeddingRegressor(nn.Module):
+# === Deeper Model ===
+class DeeperRegressor(nn.Module):
     def __init__(self, embedding_matrix):
         super().__init__()
         vocab_size, emb_dim = embedding_matrix.size()
         self.embedding = nn.Embedding.from_pretrained(embedding_matrix, freeze=True)
-        self.linear = nn.Sequential(
+        self.mlp = nn.Sequential(
             nn.Linear(emb_dim, 128),
             nn.ReLU(),
+            nn.Dropout(0.2),
             nn.Linear(128, 1)
         )
 
-
     def forward(self, x):
-        # x: [batch_size, seq_len]
-        embeds = self.embedding(x)  # [batch_size, seq_len, emb_dim]
-        avg_embeds = embeds.mean(dim=1)  # [batch_size, emb_dim]
-        out = self.linear(avg_embeds)  # [batch_size, 1]
-        return out.squeeze(1)  # [batch_size]
+        embeds = self.embedding(x)
+        avg_embeds = embeds.mean(dim=1)
+        return self.mlp(avg_embeds).squeeze(1)
 
-model = AvgEmbeddingRegressor(embeddings)
+model = DeeperRegressor(embeddings)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
+
+# === Optional: Initialize wandb ===
+# wandb.init(project="upvote-prediction")
 
 # === Training Loop ===
 def train(num_epochs=5):
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
-        for X_batch, y_batch in train_loader:
+        progress_bar = tqdm(enumerate(train_loader), total=len(train_loader), desc=f"🚂 Epoch {epoch+1}")
+
+        for batch_idx, (X_batch, y_batch) in progress_bar:
             optimizer.zero_grad()
             preds = model(X_batch)
             loss = criterion(preds, y_batch.float())
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
+
+            progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
+
+            # Optional: wandb logging
+            if batch_idx % 500 == 0:
+                wandb.log({
+                    "batch_loss": loss.item(),
+                    "epoch_progress": epoch + batch_idx/len(train_loader),
+                    "learning_rate": optimizer.param_groups[0]['lr']
+                })
+
         avg_loss = total_loss / len(train_loader)
 
-        # Validation
+        # === Validation ===
         model.eval()
         val_loss = 0
         with torch.no_grad():
@@ -80,5 +95,6 @@ def train(num_epochs=5):
         avg_val_loss = val_loss / len(val_loader)
 
         print(f"📉 Epoch {epoch+1} | Train Loss: {avg_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
+        # wandb.log({"train_loss": avg_loss, "val_loss": avg_val_loss, "epoch": epoch+1})
 
 train()
