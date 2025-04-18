@@ -4,100 +4,158 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, random_split
-from tqdm import tqdm  # for progress bar
-import wandb  # Optional: only if using Weights & Biases
+from tqdm import tqdm
+import wandb
+from sklearn.preprocessing import StandardScaler
+
+# === Configuration ===
+config = {
+    "batch_size": 128,
+    "learning_rate": 3e-4,
+    "epochs": 20,
+    "embedding_dim": 300,
+    "hidden_dim": 256,
+    "dropout": 0.3,
+    "early_stopping_patience": 5
+}
 
 # === Paths ===
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # Go up one level to reach the root directory
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 data_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_dataset.pt")
 embedding_path = os.path.join(BASE_DIR, "data", "text8_embeddings.npy")
 
-# === Load Dataset ===
+# === Load and Prepare Data ===
 print("📦 Loading dataset...")
 dataset = torch.load(data_path)
 X, y = dataset['inputs'], dataset['targets']
-print(f"✅ Loaded dataset with shape {X.shape} and targets shape {y.shape}")
 
-# === Load CBOW embeddings ===
-print("📥 Loading pretrained CBOW vectors...")
-embeddings = torch.from_numpy(np.load(embedding_path))  # Shape: [vocab_size, embedding_dim]
-embedding_dim = embeddings.shape[1]
-print(f"✅ Loaded embeddings with shape {embeddings.shape}")
+# Normalize targets
+scaler = StandardScaler()
+y_norm = torch.FloatTensor(scaler.fit_transform(y.reshape(-1, 1)).squeeze()
+print(f"✅ Loaded dataset | X: {X.shape} | y: {y.shape} | Mean score: {y.mean():.1f} ± {y.std():.1f}")
 
-# === Dataset and Dataloader ===
-dataset = TensorDataset(X, y)
-train_size = int(0.8 * len(dataset))
-val_size = len(dataset) - train_size
-train_ds, val_ds = random_split(dataset, [train_size, val_size])
-train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
-val_loader = DataLoader(val_ds, batch_size=64)
-
-# === Deeper Model ===
-class DeeperRegressor(nn.Module):
-    def __init__(self, embedding_matrix):
+# === Enhanced Model ===
+class UpvotePredictor(nn.Module):
+    def __init__(self, embedding_matrix, hidden_dim=256, dropout=0.3):
         super().__init__()
         vocab_size, emb_dim = embedding_matrix.size()
+        
         self.embedding = nn.Embedding.from_pretrained(embedding_matrix, freeze=True)
+        self.attention = nn.Sequential(
+            nn.Linear(emb_dim, 64),
+            nn.Tanh(),
+            nn.Linear(64, 1),
+            nn.Softmax(dim=1)
+        
         self.mlp = nn.Sequential(
-            nn.Linear(emb_dim, 128),
+            nn.Linear(emb_dim, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, 1)
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, hidden_dim//2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim//2, 1)
         )
 
     def forward(self, x):
-        embeds = self.embedding(x)
-        avg_embeds = embeds.mean(dim=1)
-        return self.mlp(avg_embeds).squeeze(1)
+        # x shape: [batch_size, seq_len]
+        embeds = self.embedding(x)  # [batch_size, seq_len, emb_dim]
+        
+        # Attention-weighted average
+        attn_weights = self.attention(embeds)
+        weighted_avg = (attn_weights * embeds).sum(dim=1)
+        
+        return self.mlp(weighted_avg).squeeze(1)
 
-model = DeeperRegressor(embeddings)
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
+# === Training Setup ===
+def train_model():
+    # Load embeddings
+    embeddings = torch.from_numpy(np.load(embedding_path))
+    model = UpvotePredictor(embeddings, 
+                          hidden_dim=config['hidden_dim'],
+                          dropout=config['dropout'])
+    
+    # Loss and optimizer
+    criterion = nn.MSELoss()
+    optimizer = optim.AdamW(model.parameters(), 
+                          lr=config['learning_rate'],
+                          weight_decay=1e-5)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+                                                   patience=2,
+                                                   factor=0.5,
+                                                   verbose=True)
 
-# === Optional: Initialize wandb ===
-use_wandb = False  # Set to True if you want to use Weights & Biases
-if use_wandb:
-    wandb.init(project="upvote-prediction")
+    # Dataset split
+    dataset = TensorDataset(X, y_norm)
+    train_size = int(0.8 * len(dataset))
+    train_ds, val_ds = random_split(dataset, [train_size, len(dataset)-train_size])
+    
+    train_loader = DataLoader(train_ds, 
+                            batch_size=config['batch_size'],
+                            shuffle=True,
+                            num_workers=4)
+    val_loader = DataLoader(val_ds, 
+                          batch_size=config['batch_size'],
+                          num_workers=4)
 
-# === Training Loop ===
-def train(num_epochs=5):
-    for epoch in range(num_epochs):
+    # Initialize wandb
+    wandb.init(project="hn-upvote-prediction", config=config)
+    wandb.watch(model, log="all")
+
+    # Training loop
+    best_val_loss = float('inf')
+    patience_counter = 0
+    
+    for epoch in range(config['epochs']):
         model.train()
-        total_loss = 0
-        progress_bar = tqdm(enumerate(train_loader), total=len(train_loader), desc=f"🚂 Epoch {epoch+1}")
-
-        for batch_idx, (X_batch, y_batch) in progress_bar:
+        train_loss = 0
+        progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}")
+        
+        for X_batch, y_batch in progress_bar:
             optimizer.zero_grad()
             preds = model(X_batch)
-            loss = criterion(preds, y_batch.float())
+            loss = criterion(preds, y_batch)
             loss.backward()
+            
+            # Gradient clipping
+            nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
-            total_loss += loss.item()
-
+            
+            train_loss += loss.item()
             progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
 
-            # Optional: wandb logging
-            if use_wandb and batch_idx % 500 == 0:
-                wandb.log({
-                    "batch_loss": loss.item(),
-                    "epoch_progress": epoch + batch_idx/len(train_loader),
-                    "learning_rate": optimizer.param_groups[0]['lr']
-                })
-
-        avg_loss = total_loss / len(train_loader)
-
-        # === Validation ===
+        # Validation
         model.eval()
         val_loss = 0
         with torch.no_grad():
             for X_batch, y_batch in val_loader:
                 preds = model(X_batch)
-                loss = criterion(preds, y_batch.float())
-                val_loss += loss.item()
-        avg_val_loss = val_loss / len(val_loader)
+                val_loss += criterion(preds, y_batch).item()
+        
+        avg_train = train_loss / len(train_loader)
+        avg_val = val_loss / len(val_loader)
+        
+        # Log metrics
+        wandb.log({
+            "train_loss": avg_train,
+            "val_loss": avg_val,
+            "lr": optimizer.param_groups[0]['lr']
+        })
+        
+        # Early stopping
+        if avg_val < best_val_loss:
+            best_val_loss = avg_val
+            patience_counter = 0
+            torch.save(model.state_dict(), "best_model.pt")
+        else:
+            patience_counter += 1
+            if patience_counter >= config['early_stopping_patience']:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
+        
+        scheduler.step(avg_val)
+        print(f"Epoch {epoch+1} | Train: {avg_train:.4f} | Val: {avg_val:.4f}")
 
-        print(f"📉 Epoch {epoch+1} | Train Loss: {avg_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
-        if use_wandb:
-            wandb.log({"train_loss": avg_loss, "val_loss": avg_val_loss, "epoch": epoch+1})
+    wandb.finish()
 
-train()
+if __name__ == "__main__":
+    train_model()
