@@ -1,7 +1,7 @@
 import json
 import os
 import pandas as pd
-from tokenizer import tokenize_title
+from DataPrep.tokenizer import tokenize_title
 
 def load_vocab(vocab_path):
     with open(vocab_path, 'r') as f:
