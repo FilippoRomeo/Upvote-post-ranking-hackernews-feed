@@ -1,4 +1,10 @@
 import os
+import sys
+
+# Add parent directory to Python path
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(BASE_DIR)
+
 import torch
 import numpy as np
 from torch.utils.data import DataLoader, TensorDataset, random_split
@@ -8,7 +14,6 @@ from DataPrep.tokenizer import tokenize_title
 from DataPrep.title_to_indices import titles_to_indices
 
 # === Paths ===
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 data_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_dataset.pt")
 embedding_path = os.path.join(BASE_DIR, "data", "text8_embeddings.npy")
 vocab_path = os.path.join(BASE_DIR, "data", "text8_vocab.json")
