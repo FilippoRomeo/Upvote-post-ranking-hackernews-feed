@@ -27,7 +27,7 @@ config = {
 data_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_dataset.pt")
 embedding_path = os.path.join(BASE_DIR, "data", "text8_embeddings.npy")
 vocab_path = os.path.join(BASE_DIR, "data", "text8_vocab.json")
-model_path = os.path.join(BASE_DIR, "data", "best_model.pt")
+model_path = os.path.join(BASE_DIR, "data", "hn_regressor_model.pt")
 csv_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_2010_stories.csv")
 
 class UpvotePredictor(torch.nn.Module):
@@ -77,7 +77,10 @@ def main():
     
     # Load checkpoint and extract model state
     checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint)
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        model.load_state_dict(checkpoint['model_state_dict'])
+    else:
+        model.load_state_dict(checkpoint)
     model.eval()
     
     # Load vocabulary
