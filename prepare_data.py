@@ -10,7 +10,7 @@ from DataPrep.save_dataset import save_dataset
 # === Paths ===
 BASE_DIR = os.path.dirname(__file__)
 data_dir = os.path.join(BASE_DIR, "data")
-csv_path = os.path.join(data_dir, "hn_2010_stories.csv")
+csv_path = os.path.join(data_dir, "fetch_data", "hn_2010_stories.csv")
 vocab_path = os.path.join(data_dir, "text8_vocab.json")
 output_path = os.path.join(data_dir, "hn_dataset.pt")
 
