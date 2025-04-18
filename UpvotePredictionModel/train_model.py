@@ -31,7 +31,7 @@ X, y = dataset['inputs'], dataset['targets']
 
 # Normalize targets
 scaler = StandardScaler()
-y_norm = torch.FloatTensor(scaler.fit_transform(y.reshape(-1, 1)).squeeze()
+y_norm = torch.FloatTensor(scaler.fit_transform(y.reshape(-1, 1))).squeeze()
 print(f"✅ Loaded dataset | X: {X.shape} | y: {y.shape} | Mean score: {y.mean():.1f} ± {y.std():.1f}")
 
 # === Enhanced Model ===
