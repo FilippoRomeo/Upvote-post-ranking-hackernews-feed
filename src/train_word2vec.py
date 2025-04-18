@@ -54,24 +54,6 @@ def print_similar_words(word, model, word_to_ix, ix_to_word, top_n=10):
         print(f"\nTop {top_n} words similar to '{word}':")
         for i, (score, idx) in enumerate(zip(top_values[1:], top_indices[1:]), 1):
             print(f"{i}. {ix_to_word[idx.item()]} ({score:.3f})")
-
-def evaluate_similarity(model, word_to_ix, ix_to_word, words):
-    """Evaluate and log similarity for test words"""
-    results = defaultdict(dict)
-    model.eval()
-    with torch.no_grad():
-        embeddings = model.embeddings.weight.data.cpu()
-        norm_embeddings = F.normalize(embeddings, p=2, dim=1)
-        
-        for word in words:
-            if word in word_to_ix:
-                idx = word_to_ix[word]
-                word_vec = norm_embeddings[idx].unsqueeze(0)
-                similarities = F.cosine_similarity(word_vec, norm_embeddings)
-                top_values, top_indices = similarities.topk(6)  # Top 5 + self
-                
-                for val, idx in zip(top_values[1:], top_indices[1:]):  # Skip self
-                    results[word][ix_to_word[idx.item()]] = val.item()
     
     # Log to wandb
     wandb.log({"word_similarities": wandb.Table(
@@ -166,7 +148,6 @@ def train():
         
         # Evaluate word similarities
         if epoch % 2 == 0 or epoch == 1:
-            evaluate_similarity(model, word_to_ix, ix_to_word, config["eval_words"])
             print_similar_words(config["eval_words"][0], model, word_to_ix, ix_to_word)
 
         # Log epoch metrics
