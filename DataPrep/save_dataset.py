@@ -7,6 +7,12 @@ def pad_sequences(sequences, padding_value=0):
     padded = [seq + [padding_value] * (max_len - len(seq)) for seq in sequences]
     return torch.tensor(padded, dtype=torch.long)
 
+def save_dataset(indices_list, scores_list, output_path):
+    X = pad_sequences(indices_list)
+    y = torch.tensor(scores_list, dtype=torch.float32)
+    torch.save({'inputs': X, 'targets': y}, output_path)
+    print(f"✅ Saved dataset to {output_path} with shape {X.shape} and {len(y)} targets")
+
 def load_and_save_tensor(csv_path, out_path):
     df = pd.read_csv(csv_path)
     sequences = df['indices'].apply(eval).tolist()  # Convert from string to list
