@@ -48,6 +48,7 @@ class UpvotePredictor(nn.Module):
             nn.Tanh(),
             nn.Linear(128, 1),
             nn.Softmax(dim=1)
+        )
         
         # Deeper MLP with residual connections
         self.mlp = nn.Sequential(
@@ -62,6 +63,7 @@ class UpvotePredictor(nn.Module):
             nn.Dropout(dropout),
             
             nn.Linear(hidden_dim, 1)
+        )
     
     def forward(self, x):
         # Pad sequences to same length
@@ -72,6 +74,7 @@ class UpvotePredictor(nn.Module):
         weighted_avg = (attn_weights * embeds).sum(dim=1)
         
         return self.mlp(weighted_avg).squeeze(1)
+
 # === Training Setup ===
 def train_model():
     # Load embeddings
