@@ -43,7 +43,10 @@ def main():
     model = UpvotePredictor(embeddings, 
                           hidden_dim=config['hidden_dim'],
                           dropout=config['dropout'])
-    model.load_state_dict(torch.load(model_path))
+    
+    # Load checkpoint and extract model state
+    checkpoint = torch.load(model_path)
+    model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     
     # Load vocabulary
