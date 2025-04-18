@@ -8,10 +8,20 @@ sys.path.append(BASE_DIR)
 import torch
 import numpy as np
 from torch.utils.data import DataLoader, TensorDataset, random_split
-from train_model import UpvotePredictor, config
 import pandas as pd
 from DataPrep.tokenizer import tokenize_title
 from DataPrep.title_to_indices import titles_to_indices
+
+# === Configuration ===
+config = {
+    "batch_size": 128,
+    "learning_rate": 3e-4,
+    "epochs": 20,
+    "embedding_dim": 300,
+    "hidden_dim": 256,
+    "dropout": 0.3,
+    "early_stopping_patience": 5
+}
 
 # === Paths ===
 data_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_dataset.pt")
@@ -19,6 +29,27 @@ embedding_path = os.path.join(BASE_DIR, "data", "text8_embeddings.npy")
 vocab_path = os.path.join(BASE_DIR, "data", "text8_vocab.json")
 model_path = os.path.join(BASE_DIR, "data", "best_model.pt")
 csv_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_2010_stories.csv")
+
+class UpvotePredictor(torch.nn.Module):
+    def __init__(self, embedding_matrix, hidden_dim=256, dropout=0.3):
+        super().__init__()
+        vocab_size, emb_dim = embedding_matrix.size()
+        
+        self.embeddings = torch.nn.Embedding.from_pretrained(embedding_matrix, freeze=False)
+        self.projection = torch.nn.Linear(emb_dim, 1)
+    
+    def forward(self, x):
+        # Pad sequences to same length
+        x = torch.nn.utils.rnn.pad_sequence(x, batch_first=True)
+        
+        # Get embeddings
+        embeds = self.embeddings(x)
+        
+        # Average pooling
+        avg_embeds = embeds.mean(dim=1)
+        
+        # Project to score
+        return self.projection(avg_embeds).squeeze(1)
 
 def load_vocab():
     import json
@@ -46,7 +77,7 @@ def main():
     
     # Load checkpoint and extract model state
     checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint)
     model.eval()
     
     # Load vocabulary
