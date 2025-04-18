@@ -46,6 +46,7 @@ class UpvotePredictor(nn.Module):
             nn.Tanh(),
             nn.Linear(64, 1),
             nn.Softmax(dim=1)
+        )
         
         self.mlp = nn.Sequential(
             nn.Linear(emb_dim, hidden_dim),
