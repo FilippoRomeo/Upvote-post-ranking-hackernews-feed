@@ -2,12 +2,13 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
 # === Paths ===
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # Go up one level to reach the root directory
 data_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_dataset.pt")
-embedding_path = os.path.join(BASE_DIR, "data", "text8_vectors.pt")
+embedding_path = os.path.join(BASE_DIR, "data", "text8_embeddings.npy")
 
 
 # === Load Dataset ===
@@ -18,7 +19,7 @@ print(f"✅ Loaded dataset with shape {X.shape} and targets shape {y.shape}")
 
 # === Load CBOW embeddings ===
 print("📥 Loading pretrained CBOW vectors...")
-embeddings = torch.load(embedding_path)  # Shape: [vocab_size, embedding_dim]
+embeddings = torch.from_numpy(np.load(embedding_path))  # Shape: [vocab_size, embedding_dim]
 embedding_dim = embeddings.shape[1]
 print(f"✅ Loaded embeddings with shape {embeddings.shape}")
 
