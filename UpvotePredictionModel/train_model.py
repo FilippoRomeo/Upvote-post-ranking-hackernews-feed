@@ -55,7 +55,9 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 # === Optional: Initialize wandb ===
-# wandb.init(project="upvote-prediction")
+use_wandb = False  # Set to True if you want to use Weights & Biases
+if use_wandb:
+    wandb.init(project="upvote-prediction")
 
 # === Training Loop ===
 def train(num_epochs=5):
@@ -75,7 +77,7 @@ def train(num_epochs=5):
             progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
 
             # Optional: wandb logging
-            if batch_idx % 500 == 0:
+            if use_wandb and batch_idx % 500 == 0:
                 wandb.log({
                     "batch_loss": loss.item(),
                     "epoch_progress": epoch + batch_idx/len(train_loader),
@@ -95,6 +97,7 @@ def train(num_epochs=5):
         avg_val_loss = val_loss / len(val_loader)
 
         print(f"📉 Epoch {epoch+1} | Train Loss: {avg_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
-        # wandb.log({"train_loss": avg_loss, "val_loss": avg_val_loss, "epoch": epoch+1})
+        if use_wandb:
+            wandb.log({"train_loss": avg_loss, "val_loss": avg_val_loss, "epoch": epoch+1})
 
 train()
