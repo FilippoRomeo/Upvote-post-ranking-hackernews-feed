@@ -36,7 +36,17 @@ class UpvotePredictor(torch.nn.Module):
         vocab_size, emb_dim = embedding_matrix.size()
         
         self.embeddings = torch.nn.Embedding.from_pretrained(embedding_matrix, freeze=False)
-        self.projection = torch.nn.Linear(emb_dim, 1)
+        
+        # Fully connected layers
+        self.fc1 = torch.nn.Linear(emb_dim, hidden_dim)
+        self.fc2 = torch.nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = torch.nn.Linear(hidden_dim, 1)
+        
+        # Dropout
+        self.dropout = torch.nn.Dropout(dropout)
+        
+        # Activation
+        self.relu = torch.nn.ReLU()
     
     def forward(self, x):
         # Pad sequences to same length
@@ -48,8 +58,14 @@ class UpvotePredictor(torch.nn.Module):
         # Average pooling
         avg_embeds = embeds.mean(dim=1)
         
-        # Project to score
-        return self.projection(avg_embeds).squeeze(1)
+        # Fully connected layers
+        x = self.relu(self.fc1(avg_embeds))
+        x = self.dropout(x)
+        x = self.relu(self.fc2(x))
+        x = self.dropout(x)
+        x = self.fc3(x)
+        
+        return x.squeeze(1)
 
 def load_vocab():
     import json
