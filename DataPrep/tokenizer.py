@@ -28,5 +28,3 @@ def tokenize_title(title):
 def tokenize_all_titles(df):
     # Apply tokenization to all titles in the DataFrame
     return df['title'].apply(tokenize_title)
-
-from DataPrep.tokenizer import tokenize_title
