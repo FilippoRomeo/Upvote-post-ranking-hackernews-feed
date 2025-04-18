@@ -5,7 +5,7 @@ import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
 # === Paths ===
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # Go up one level to reach the root directory
 data_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_dataset.pt")
 embedding_path = os.path.join(BASE_DIR, "data", "text8_vectors.pt")
 
