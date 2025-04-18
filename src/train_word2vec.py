@@ -35,7 +35,7 @@ config = {
 }
 
 def print_similar_words(word, model, word_to_ix, ix_to_word, top_n=10):
-    """Print most similar words with their similarity scores"""
+    """Print most similar words with their similarity scores and log to wandb"""
     if word not in word_to_ix:
         print(f"'{word}' not in vocabulary.")
         return
@@ -44,22 +44,27 @@ def print_similar_words(word, model, word_to_ix, ix_to_word, top_n=10):
     with torch.no_grad():
         embeddings = model.embeddings.weight.data.cpu()
         norm_embeddings = F.normalize(embeddings, p=2, dim=1)
-        
+
         word_idx = word_to_ix[word]
         word_vec = norm_embeddings[word_idx].unsqueeze(0)
-        
+
         similarities = F.cosine_similarity(word_vec, norm_embeddings)
         top_values, top_indices = similarities.topk(top_n + 1)  # +1 to exclude self
-        
+
         print(f"\nTop {top_n} words similar to '{word}':")
+        top_words = []
         for i, (score, idx) in enumerate(zip(top_values[1:], top_indices[1:]), 1):
-            print(f"{i}. {ix_to_word[idx.item()]} ({score:.3f})")
-    
-    # Log to wandb
-    wandb.log({"word_similarities": wandb.Table(
-        columns=["word"] + [f"top_{i}" for i in range(1, 6)],
-        data=[[w] + list(results[w].keys()) for w in words if w in results]
-    )})
+            similar_word = ix_to_word[idx.item()]
+            print(f"{i}. {similar_word} ({score:.3f})")
+            top_words.append(similar_word)
+
+        # Log to wandb
+        wandb.log({
+            "word_similarities": wandb.Table(
+                columns=["word"] + [f"top_{i}" for i in range(1, len(top_words)+1)],
+                data=[[word] + top_words]
+            )
+        })
 
 def train():
     # Reproducibility
@@ -98,10 +103,8 @@ def train():
 
     # Initialize model
     model = CBOWModel(vocab_size, config["embedding_dim"]).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], 
-                                weight_decay=1e-5, amsgrad=True)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', patience=2, factor=0.5, verbose=True)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], weight_decay=1e-5, amsgrad=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau( optimizer, mode='min', patience=2, factor=0.5, verbose=True)
     loss_fn = nn.CrossEntropyLoss()
     
     # Watch model
