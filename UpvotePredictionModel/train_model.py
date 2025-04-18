@@ -41,32 +41,37 @@ class UpvotePredictor(nn.Module):
         vocab_size, emb_dim = embedding_matrix.size()
         
         self.embedding = nn.Embedding.from_pretrained(embedding_matrix, freeze=True)
-        self.attention = nn.Sequential(
-            nn.Linear(emb_dim, 64),
-            nn.Tanh(),
-            nn.Linear(64, 1),
-            nn.Softmax(dim=1)
-        )
         
+        # Enhanced attention mechanism
+        self.attention = nn.Sequential(
+            nn.Linear(emb_dim, 128),
+            nn.Tanh(),
+            nn.Linear(128, 1),
+            nn.Softmax(dim=1)
+        
+        # Deeper MLP with residual connections
         self.mlp = nn.Sequential(
             nn.Linear(emb_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, hidden_dim//2),
+            
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim//2, 1)
-        )
-
+            nn.Dropout(dropout),
+            
+            nn.Linear(hidden_dim, 1)
+    
     def forward(self, x):
-        # x shape: [batch_size, seq_len]
-        embeds = self.embedding(x)  # [batch_size, seq_len, emb_dim]
+        # Pad sequences to same length
+        x = torch.nn.utils.rnn.pad_sequence(x, batch_first=True)
         
-        # Attention-weighted average
+        embeds = self.embedding(x)
         attn_weights = self.attention(embeds)
         weighted_avg = (attn_weights * embeds).sum(dim=1)
         
         return self.mlp(weighted_avg).squeeze(1)
-
 # === Training Setup ===
 def train_model():
     # Load embeddings
