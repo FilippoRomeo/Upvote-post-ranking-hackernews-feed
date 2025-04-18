@@ -18,7 +18,8 @@ config = {
     "learning_rate": 3e-4,
     "epochs": 20,
     "embedding_dim": 300,
-    "hidden_dim": 256,
+    "hidden_dim1": 128,  # Updated to match checkpoint
+    "hidden_dim2": 64,   # Updated to match checkpoint
     "dropout": 0.3,
     "early_stopping_patience": 5
 }
@@ -31,16 +32,16 @@ model_path = os.path.join(BASE_DIR, "data", "hn_regressor_model.pt")
 csv_path = os.path.join(BASE_DIR, "data", "fetch_data", "hn_2010_stories.csv")
 
 class UpvotePredictor(torch.nn.Module):
-    def __init__(self, embedding_matrix, hidden_dim=256, dropout=0.3):
+    def __init__(self, embedding_matrix, hidden_dim1=128, hidden_dim2=64, dropout=0.3):
         super().__init__()
         vocab_size, emb_dim = embedding_matrix.size()
         
         self.embeddings = torch.nn.Embedding.from_pretrained(embedding_matrix, freeze=False)
         
-        # Fully connected layers
-        self.fc1 = torch.nn.Linear(emb_dim, hidden_dim)
-        self.fc2 = torch.nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = torch.nn.Linear(hidden_dim, 1)
+        # Fully connected layers with correct sizes
+        self.fc1 = torch.nn.Linear(emb_dim, hidden_dim1)  # 300 -> 128
+        self.fc2 = torch.nn.Linear(hidden_dim1, hidden_dim2)  # 128 -> 64
+        self.fc3 = torch.nn.Linear(hidden_dim2, 1)  # 64 -> 1
         
         # Dropout
         self.dropout = torch.nn.Dropout(dropout)
@@ -88,7 +89,8 @@ def main():
     # Load model
     embeddings = torch.from_numpy(np.load(embedding_path))
     model = UpvotePredictor(embeddings, 
-                          hidden_dim=config['hidden_dim'],
+                          hidden_dim1=config['hidden_dim1'],
+                          hidden_dim2=config['hidden_dim2'],
                           dropout=config['dropout'])
     
     # Load checkpoint and extract model state
