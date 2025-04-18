@@ -12,6 +12,9 @@ def convert_title_to_indices(tokens, word_to_ix):
     indices = [word_to_ix[token] for token in tokens if token in word_to_ix]
     return indices
 
+def titles_to_indices(tokens_series, word_to_ix):
+    return tokens_series.apply(lambda tokens: convert_title_to_indices(tokens, word_to_ix))
+
 def process_dataframe(df, vocab_path):
     word_to_ix = load_vocab(vocab_path)
     df['tokens'] = df['title'].apply(tokenize_title)
