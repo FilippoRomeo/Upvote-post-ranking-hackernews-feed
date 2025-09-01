@@ -1,53 +1,43 @@
-Here’s a polished README.md you can drop into your repo. It stitches everything together cleanly and includes the setup + troubleshooting you asked for.
+# 🔍 Hacker News Upvote Predictor
 
-🔍 Hacker News Upvote Predictor
+This project builds a regression model to **predict the upvote score** of Hacker News posts based on their **titles**. It uses **Word2Vec-style embeddings** (trained with the CBOW architecture on the [text8 dataset](https://huggingface.co/datasets/ardMLX/text8)) and then feeds those embeddings into a regression model.
 
-This project builds a regression model to predict the upvote score of Hacker News posts based on their titles. It uses Word2Vec-style embeddings (trained with the CBOW architecture on the text8 dataset
-) and then feeds those embeddings into a regression model.
+---
 
-📑 Table of Contents
+## 📑 Table of Contents
 
-Overview
+- [Overview](#overview)
+- [Project Structure](#project-structure)
+- [Setup](#setup)
+- [Data Preparation](#data-preparation)
+- [Training](#training)
+- [Testing Word Embeddings](#testing-word-embeddings)
+- [Upvote Prediction Model](#upvote-prediction-model)
+- [Troubleshooting](#troubleshooting)
+- [References](#references)
 
-Project Structure
+---
 
-Setup
+## 🔎 Overview
 
-Data Preparation
+1. **Train embeddings**
+   - Train a **CBOW Word2Vec model** on the cleaned Wikipedia corpus **text8**.
+   - Produce a vocabulary (`text8_vocab.json`) and word embeddings (`text8_embeddings.npy`).
 
-Training
+2. **Prepare Hacker News data**
+   - Connect to a PostgreSQL DB with titles and upvote scores.
+   - Tokenize titles → Convert tokens to indices using CBOW vocab → Save dataset as tensors.
 
-Testing Word Embeddings
+3. **Predict upvotes**
+   - Pool embeddings (average) from each title.
+   - Feed into a regression model (simple feed-forward NN).
+   - Train with **MSE loss** to predict Hacker News scores.
 
-Upvote Prediction Model
+---
 
-Troubleshooting
+## 📂 Project Structure
 
-References
-
-🔎 Overview
-
-Train embeddings
-
-Train a CBOW Word2Vec model on the cleaned Wikipedia corpus text8.
-
-Produce a vocabulary (text8_vocab.json) and word embeddings (text8_embeddings.npy).
-
-Prepare Hacker News data
-
-Connect to a PostgreSQL DB with titles and upvote scores.
-
-Tokenize titles → Convert tokens to indices using CBOW vocab → Save dataset as tensors.
-
-Predict upvotes
-
-Pool embeddings (average) from each title.
-
-Feed into a regression model (simple feed-forward NN).
-
-Train with MSE loss to predict Hacker News scores.
-
-📂 Project Structure
+```
 project-root/
 ├─ data/
 │  ├─ text8                         # raw text8 corpus (downloaded)
@@ -70,96 +60,111 @@ project-root/
 ├─ environment.yml
 ├─ requirements.txt
 └─ README.md
+```
 
+> **Note:** Filenames can vary; the commands below assume these defaults.
 
-Note: Filenames can vary; the commands below assume these defaults.
+---
 
-⚙️ Setup
+## ⚙️ Setup
 
-Clone & enter the repo
+### 1) Clone & enter the repo
 
+```bash
 git clone <your-repo-url>
 cd search-engine
+```
 
+### 2) Create Conda environment
 
-Create Conda environment
-
+```bash
 conda env create -f environment.yml -n search-engine
 conda activate search-engine
+```
 
+**Or manually install requirements:**
 
-Or manually install requirements:
-
+```bash
 conda activate ai-lab   # or your preferred env
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+```
 
+### 3) Verify installation
 
-Verify installation
-
+```bash
 python --version
 pip list
+```
 
-🗄️ Data Preparation
+---
 
-Database connection
+## 🗄️ Data Preparation
+
+**Database connection**
 
 The project connects to a PostgreSQL DB:
 
+```
 postgres://sy91dhb:g5t49ao@178.156.142.230:5432/hd64m1ki
+```
 
+**Run the pipeline**
 
-Run the pipeline
-
+```bash
 python prepare_data.py
-
+```
 
 This will:
 
-Fetch titles + scores
+- Fetch **titles + scores**
+- Tokenize titles
+- Map tokens → indices with **CBOW vocab**
+- Save processed dataset at: `data/hn_dataset.pt`
 
-Tokenize titles
+**Edge cases handled:**
 
-Map tokens → indices with CBOW vocab
+- Tokens not in vocab → filtered out
+- Empty titles after filtering → skipped
+- Extremely short/long titles → retained, but pooled during training
 
-Save processed dataset at: data/hn_dataset.pt
+---
 
-Edge cases handled:
+## 🧠 Training
 
-Titles with tokens not in vocab → filtered out
+### 1) Train Word2Vec (CBOW)
 
-Empty titles after filtering → skipped
-
-Extremely short/long titles → retained, but pooled during training
-
-🧠 Training
-1) Train Word2Vec (CBOW)
+```bash
 python train_cbow.py
-
+```
 
 This saves:
 
-data/text8_vocab.json (vocab mapping)
+- `data/text8_vocab.json` (vocab mapping)
+- `data/text8_embeddings.npy` (trained embeddings)
+- Model checkpoints (e.g., `data/text8_cbow_model.pt`, `data/best_model.pt`)
 
-data/text8_embeddings.npy (trained embeddings)
+### 2) Train the Upvote Regressor
 
-Model checkpoints (e.g., data/text8_cbow_model.pt, data/best_model.pt)
-
-2) Train the Upvote Regressor
+```bash
 python train_regressor.py
+```
 
+This uses the Hacker News dataset (`hn_dataset.pt`) and **CBOW embeddings** to predict scores.
 
-This uses the Hacker News dataset (hn_dataset.pt) and CBOW embeddings to predict scores.
+---
 
-🧪 Testing Word Embeddings
+## 🧪 Testing Word Embeddings
 
 Explore the semantic space of words:
 
+```bash
 python src/test_cbow.py
+```
 
+**Example session**
 
-Example session
-
+```
 Enter a word (or 'exit'): car
 
 🔗 Words related to 'car':
@@ -168,11 +173,15 @@ Enter a word (or 'exit'): car
   automobile      | similarity: 0.3740
   motorcycle      | similarity: 0.3350
   ...
+```
 
-📈 Upvote Prediction Model
+---
+
+## 📈 Upvote Prediction Model
 
 A simple feed-forward regressor:
 
+```python
 import torch.nn as nn
 
 class UpvoteRegressor(nn.Module):
@@ -188,60 +197,68 @@ class UpvoteRegressor(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+```
 
+- **Loss:** `MSELoss`
+- **Optimizer:** `Adam` (e.g., `lr=1e-3`)
+- **Input:** average-pooled title embeddings (`[batch, embedding_dim]`)
 
-Loss: MSELoss
+---
 
-Optimizer: Adam (e.g., lr=1e-3)
+## 🛠️ Troubleshooting
 
-Input: average-pooled title embeddings ([batch, embedding_dim])
-
-🛠️ Troubleshooting
-Pip / Conda issues
+### Pip / Conda issues
 
 If you see:
 
+```
 error: externally-managed-environment
-
+```
 
 ➡️ Use Conda:
 
+```bash
 conda activate ai-lab
 python -m pip install -r requirements.txt
-
+```
 
 ➡️ Or recreate env:
 
+```bash
 conda env create -f environment.yml -n search-engine
 conda activate search-engine
+```
 
+➡️ If `pip` is broken inside Conda:
 
-➡️ If pip is broken inside Conda:
-
+```bash
 conda install pip --force-reinstall
+```
 
-Empty Titles
+### Empty Titles
 
-Some HN titles may contain no valid tokens after preprocessing (e.g., all non-alphanumerics). These are skipped during dataset creation.
+Some HN titles may contain no valid tokens after preprocessing (e.g., all non-alphanumerics). These are **skipped** during dataset creation.
 
-macOS + Homebrew Python (PEP 668)
+### macOS + Homebrew Python (PEP 668)
 
-Homebrew’s Python may block global pip installs. Prefer Conda envs or a venv. If you must, use:
+Homebrew’s Python may block global `pip` installs. Prefer **Conda envs** or a `venv`. If you must, use:
 
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
 
-📚 References
+---
 
-Word2Vec Paper (Mikolov et al., 2013): Efficient Estimation of Word Representations in Vector Space
+## 📚 References
 
-text8 dataset (Hugging Face): https://huggingface.co/datasets/ardMLX/text8
+- **Word2Vec Paper** (Mikolov et al., 2013): *Efficient Estimation of Word Representations in Vector Space*
+- **text8 dataset** (Hugging Face): https://huggingface.co/datasets/ardMLX/text8  
+  Background: http://mattmahoney.net/dc/textdata.html
+- **Hacker News**: https://news.ycombinator.com/
+- **PEP 668** (Externally Managed Environments): https://peps.python.org/pep-0668/
 
-Background: http://mattmahoney.net/dc/textdata.html
+---
 
-Hacker News: https://news.ycombinator.com/
-
-PEP 668 (Externally Managed Environments): https://peps.python.org/pep-0668/
-
-🚀 Happy hacking! If you have questions or want to extend this (e.g., try Skip-gram, try different pooling, or switch to RNNs/Transformers), open an issue or PR.
+🚀 **Happy hacking!** If you have questions or want to extend this (e.g., try Skip-gram, different pooling, or switch to RNNs/Transformers), open an issue or PR.
