@@ -103,11 +103,13 @@ pip list
 
 **Database connection**
 
-The project connects to a PostgreSQL DB:
+The database connection must be provided through the `DATABASE_URL` environment variable. Do not commit real database credentials to the repository.
 
+```bash
+export DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/DBNAME'
 ```
-postgres://sy91dhb:g5t49ao@178.156.142.230:5432/hd64m1ki
-```
+
+The fetcher fails closed if `DATABASE_URL` is missing.
 
 **Run the pipeline**
 
@@ -119,7 +121,7 @@ This will:
 
 - Fetch **titles + scores**
 - Tokenize titles
-- Map tokens → indices with **CBOW vocab**
+- Map tokens → indices with CBOW vocab
 - Save processed dataset at: `data/hn_dataset.pt`
 
 **Edge cases handled:**
