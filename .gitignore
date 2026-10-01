@@ -1,4 +1,13 @@
 data/tokens.json
 text8
-.gitignore
-.docignore
+
+# Local credentials and environment
+.env
+.env.*
+!.env.example
+
+# Python / OS artifacts
+__pycache__/
+*.py[cod]
+.DS_Store
+*.log

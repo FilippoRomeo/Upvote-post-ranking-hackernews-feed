@@ -1,10 +1,18 @@
 # DataPrep/fetch_h_data.py
-import psycopg2
-import pandas as pd
 import os
 
-def fetch_hn_data(start_year=2015, end_year=2015, content_type='story', min_score=1):
-    conn = psycopg2.connect("postgresql://REDACTED")
+import pandas as pd
+import psycopg2
+
+
+def fetch_hn_data(start_year=2015, end_year=2015, content_type="story", min_score=1):
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError(
+            "DATABASE_URL is not set. Export it before running the data fetcher."
+        )
+
+    conn = psycopg2.connect(database_url)
     all_data = []
 
     try:
@@ -27,9 +35,9 @@ def fetch_hn_data(start_year=2015, end_year=2015, content_type='story', min_scor
                                 df = pd.DataFrame(rows, columns=columns)
 
                                 # Drop rows with null/empty titles or null score
-                                df = df.dropna(subset=['title', 'score'])
-                                df = df[df['title'].str.strip() != '']
-                                df = df[df['score'] >= min_score]
+                                df = df.dropna(subset=["title", "score"])
+                                df = df[df["title"].str.strip() != ""]
+                                df = df[df["score"] >= min_score]
 
                                 if not df.empty:
                                     all_data.append(df)
@@ -41,8 +49,11 @@ def fetch_hn_data(start_year=2015, end_year=2015, content_type='story', min_scor
 
     return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
 
+
 if __name__ == "__main__":
-    output_path = os.path.join(os.path.dirname(__file__), "..", "data/fetch_data", "hn_2010_stories.csv")
-    df = fetch_hn_data(2008, 2010, 'story', min_score=1)
+    output_path = os.path.join(
+        os.path.dirname(__file__), "..", "data/fetch_data", "hn_2010_stories.csv"
+    )
+    df = fetch_hn_data(2008, 2010, "story", min_score=1)
     df.to_csv(output_path, index=False)
     print(f"\n✅ Saved {len(df)} clean rows to hn_2010_stories.csv")
